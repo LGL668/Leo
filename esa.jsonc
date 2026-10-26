@@ -1,5 +1,7 @@
 {
-  "name": "stock-dashboard",
+  "name": "leo",
+  "installCommand": "",
+  "buildCommand": "",
   "assets": {
     "directory": "./",
     "notFoundStrategy": "singlePageApplication"
