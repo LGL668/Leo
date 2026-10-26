@@ -1,0 +1,7 @@
+{
+  "name": "stock-dashboard",
+  "assets": {
+    "directory": "./",
+    "notFoundStrategy": "singlePageApplication"
+  }
+}
