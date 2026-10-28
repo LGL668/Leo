@@ -1,681 +1,694 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>实时股票行情看板 - 移动适配版</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { width: 100%; height: 100%; overflow-x: hidden; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
-            background: #0d1117; 
-            color: #c9d1d9; 
-            padding: 12px; /* 缩小全局内边距 */
-        }
-        
-        /* 容器改为百分百宽度，并限制最大宽度在 PC 端居中 */
-        .container { width: 100%; max-width: 1200px; margin: 0 auto; }
-        
-        h1 { font-size: 1.4rem; margin-bottom: 16px; font-weight: 500; color: #e6edf3; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>星际穿梭 · Star Runner</title>
+<style>
+  :root{ --cyan:#3ee8ff; --pink:#ff3d8b; --mint:#5cffc0; }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden;background:#02030a;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    color:#e8f6ff;user-select:none}
+  #game{position:fixed;inset:0}
+  #game canvas{display:block}
 
-        /* 搜索区域 */
-        .search-bar { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; position: relative; align-items: center; }
-        .search-bar input { flex: 1; min-width: 150px; padding: 8px 12px; border-radius: 6px; border: 1px solid #30363d; background: #161b22; color: #c9d1d9; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
-        .search-bar input:focus { border-color: #58a6ff; }
-        .search-bar button { padding: 8px 16px; border-radius: 6px; border: none; background: #238636; color: #fff; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
-        .search-bar button:hover { background: #2ea043; }
-        .search-bar button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .hud{position:fixed;inset:0;pointer-events:none;padding:22px 26px;
+       display:flex;justify-content:space-between;align-items:flex-start;
+       font-variant-numeric:tabular-nums}
+  .hud .label{font-size:11px;letter-spacing:4px;opacity:.45;margin-bottom:2px}
+  .hud .score{font-size:36px;font-weight:800;letter-spacing:2px;color:var(--cyan);
+              text-shadow:0 0 22px rgba(62,232,255,.75)}
+  .hud .right{text-align:right}
+  .hud .right .val{font-size:18px;font-weight:700;color:#8fe3ff;opacity:.85}
 
-        .refresh-config { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; color: #8b949e; white-space: nowrap; }
-        .refresh-config select { padding: 7px 10px; border-radius: 6px; border: 1px solid #30363d; background: #161b22; color: #c9d1d9; font-size: 0.85rem; outline: none; cursor: pointer; }
+  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 45%,rgba(10,30,60,.55),rgba(2,3,10,.93));
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    transition:opacity .35s ease}
+  .overlay.hidden{opacity:0;pointer-events:none}
+  .card{text-align:center;padding:40px 46px;max-width:480px}
 
-        /* 候选下拉框 */
-        .suggestions { position: absolute; top: 100%; left: 0; right: 0; z-index: 100; background: #1c2128; border: 1px solid #30363d; border-top: none; border-radius: 0 0 8px 8px; max-height: 240px; overflow-y: auto; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-        .suggestion-item { padding: 10px 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; transition: background 0.15s; }
-        .suggestion-item:hover { background: #30363d; }
-        .suggestion-item .s-name { font-weight: 500; color: #e6edf3; }
-        .suggestion-item .s-code { color: #8b949e; font-size: 0.8rem; margin-left: 8px; }
-        .suggestion-item .s-market { color: #58a6ff; font-size: 0.75rem; margin-left: 6px; }
+  .title{font-size:46px;font-weight:900;letter-spacing:10px;
+    background:linear-gradient(90deg,#3ee8ff,#5cffc0,#ff3d8b);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 26px rgba(62,232,255,.45))}
+  .subtitle{font-size:11px;letter-spacing:9px;opacity:.45;margin-top:8px;text-transform:uppercase}
 
-        /* 自选股标签栏 */
-        .watchlist-bar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 10px; white-space: nowrap; scrollbar-width: none; }
-        .watchlist-bar::-webkit-scrollbar { display: none; }
-        
-        .watch-item { display: inline-flex; align-items: center; background: #161b22; border: 1px solid #30363d; padding: 4px 10px; border-radius: 16px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; }
-        .watch-item:hover { background: #21262d; border-color: #8b949e; }
-        .watch-item.active { background: #1f6feb22; border-color: #58a6ff; color: #58a6ff; }
-        .watch-item .w-name { font-weight: 500; margin-right: 4px; }
-        .watch-item .w-code { color: #8b949e; font-size: 0.7rem; }
-        .watch-item .w-del { margin-left: 6px; color: #484f58; font-weight: bold; cursor: pointer; padding: 0 4px; border-radius: 50%; transition: color 0.2s, background 0.2s; }
-        .watch-item .w-del:hover { color: #f85149; background: #30363d; }
-        .watch-empty { color: #8b949e; font-size: 0.8rem; padding: 4px 0; }
+  .tips{margin:30px 0 34px;font-size:14px;line-height:2.1;opacity:.75}
+  .tips b{color:var(--cyan);font-weight:600}
+  .key{display:inline-block;padding:1px 9px;border:1px solid rgba(255,255,255,.22);
+       border-radius:5px;font-size:12px;margin:0 2px;opacity:.9}
 
-        .status { font-size: 0.8rem; color: #8b949e; margin-bottom: 12px; min-height: 18px; }
-        .status.error { color: #f85149; }
+  .btn{pointer-events:auto;cursor:pointer;border:none;border-radius:999px;
+    padding:16px 56px;font-size:16px;font-weight:800;letter-spacing:5px;
+    color:#001018;background:linear-gradient(135deg,#5cffc0,#3ee8ff);
+    box-shadow:0 0 36px rgba(62,232,255,.5);
+    transition:transform .18s,box-shadow .18s;font-family:inherit}
+  .btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 52px rgba(62,232,255,.85)}
+  .btn:active{transform:scale(.96)}
 
-        /* 报价卡片 */
-        .quote-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-bottom: 16px; display: none; }
-        .quote-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; }
-        .stock-title { display: flex; align-items: center; gap: 8px; }
-        .stock-name { font-size: 1.2rem; font-weight: 600; color: #e6edf3; }
-        .stock-code { font-size: 0.8rem; color: #8b949e; }
-        
-        .star-btn { background: transparent; border: 1px solid #30363d; color: #8b949e; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 2px; }
-        .star-btn:hover { border-color: #d29922; color: #d29922; }
-        .star-btn.starred { border-color: #d29922; color: #d29922; background: #d299221a; }
-        .star-btn.starred:hover { background: #d2992233; }
-
-        .price-block { text-align: right; }
-        .current-price { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-        .change { font-size: 0.85rem; margin-top: 2px; font-variant-numeric: tabular-nums; }
-        .up { color: #f85149; }
-        .down { color: #3fb950; }
-        .flat { color: #8b949e; }
-
-        .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #30363d; }
-        .meta-item { display: flex; flex-direction: column; gap: 2px; }
-        .meta-label { font-size: 0.7rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
-        .meta-value { font-size: 0.85rem; font-variant-numeric: tabular-nums; }
-
-        /* === 持仓盈亏面板 === */
-        .portfolio-panel { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #30363d; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-        .portfolio-inputs { display: flex; gap: 8px; flex-wrap: wrap; }
-        .input-group { display: flex; flex-direction: column; gap: 4px; }
-        .input-group label { font-size: 0.7rem; color: #8b949e; }
-        .input-group input { width: 90px; padding: 6px 8px; border-radius: 4px; border: 1px solid #30363d; background: #0d1117; color: #e6edf3; font-size: 0.85rem; outline: none; transition: border-color 0.2s; }
-        .input-group input:focus { border-color: #58a6ff; }
-        
-        .portfolio-results { display: flex; gap: 16px; flex-wrap: wrap; margin-left: auto; text-align: right; }
-        .p-result-item { display: flex; flex-direction: column; gap: 2px; }
-        .p-result-label { font-size: 0.7rem; color: #8b949e; }
-        .p-result-value { font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-        .p-result-value.amount { font-size: 1.1rem; }
-
-        /* 图表容器 */
-        .chart-container { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 8px; margin-bottom: 16px; display: none; }
-        .chart-container h2 { font-size: 0.9rem; font-weight: 500; margin-bottom: 8px; padding-left: 4px; color: #e6edf3; display: flex; justify-content: space-between; align-items: center; }
-        
-        /* 图表框默认高度，手机端横屏时通过媒体查询大幅降低，以适应屏幕高度 */
-        .chart-box { width: 100%; height: 380px; }
-
-        .footer { margin-top: 16px; font-size: 0.7rem; color: #484f58; text-align: center; line-height: 1.4; }
-        .footer a { color: #58a6ff; text-decoration: none; }
-
-        .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 4px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        
-        .pulse-dot { display: inline-block; width: 6px; height: 6px; background-color: #3fb950; border-radius: 50%; margin-right: 4px; box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.7); animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(63, 185, 80, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(63, 185, 80, 0); } }
-
-        /* ========================================================= */
-        /* 🌟 核心响应式：针对手机横屏（高度较小的设备）做特殊优化 */
-        /* ========================================================= */
-        @media (max-width: 850px), (orientation: landscape) and (max-height: 500px) {
-            body { padding: 6px; }
-            h1 { display: none; } /* 移动端隐藏主标题节约空间 */
-            
-            .search-bar { flex-wrap: nowrap; gap: 4px; }
-            .search-bar input { padding: 6px 8px; font-size: 0.85rem; }
-            .search-bar button { padding: 6px 10px; font-size: 0.85rem; }
-            .refresh-config span { display: none; } /* 隐藏文字，只留下拉框 */
-            .refresh-config select { padding: 6px; font-size: 0.85rem; }
-
-            .quote-card { padding: 10px; margin-bottom: 8px; }
-            .current-price { font-size: 1.4rem; }
-            .meta-grid { grid-template-columns: repeat(3, 1fr); margin-top: 8px; padding-top: 8px; }
-            
-            .portfolio-panel { flex-direction: column; align-items: stretch; gap: 8px; margin-top: 8px; padding-top: 8px; }
-            .portfolio-inputs { justify-content: space-between; }
-            .input-group { flex: 1; }
-            .input-group input { width: 100%; }
-            .portfolio-results { justify-content: space-between; margin-left: 0; text-align: left; gap: 8px; }
-
-            /* 横屏时，图表高度自适应，避免一屏放不下 */
-            .chart-box { height: 260px; } 
-            .chart-container { padding: 4px; margin-bottom: 8px; }
-        }
-        
-        /* 极端横屏：让两个图表并排显示，完美利用宽屏优势 */
-        @media (orientation: landscape) and (max-height: 500px) and (min-width: 650px) {
-            .chart-wrapper-group { display: flex; gap: 8px; width: 100%; }
-            .chart-container { flex: 1; width: 50%; margin-bottom: 8px; }
-            .chart-box { height: 240px; }
-        }
-    </style>
+  .bigscore{font-size:68px;font-weight:900;color:#fff;line-height:1;margin:16px 0 8px;
+            text-shadow:0 0 44px rgba(62,232,255,.7)}
+  .best{font-size:13px;letter-spacing:3px;opacity:.55;margin-bottom:30px}
+  #flash{position:fixed;inset:0;background:#ff2d6f;opacity:0;pointer-events:none;
+         transition:opacity .12s ease}
+</style>
 </head>
 <body>
-<div class="container">
-    <h1>📊 实时股票行情看板</h1>
 
-    <!-- 搜索和设置 -->
-    <div class="search-bar">
-        <input type="text" id="codeInput" placeholder="代码或名称，如 600519" autocomplete="off">
-        <button id="searchBtn">查询</button>
-        <div class="refresh-config">
-            <span>刷新：</span>
-            <select id="refreshRate">
-                <option value="1000">1秒</option>
-                <option value="2000">2秒</option>
-                <option value="3000" selected>3秒</option>
-                <option value="5000">5秒</option>
-            </select>
-        </div>
-        <div class="suggestions" id="suggestions"></div>
-    </div>
+<div id="game"></div>
+<div id="flash"></div>
 
-    <!-- 自选股标签栏 -->
-    <div class="watchlist-bar" id="watchlistBar"></div>
-    
-    <div class="status" id="status"></div>
-
-    <!-- 报价卡片 -->
-    <div class="quote-card" id="quoteCard">
-        <div class="quote-header">
-            <div class="stock-title">
-                <div>
-                    <span class="stock-name" id="stockName">--</span>
-                    <span class="stock-code" id="stockCode"></span>
-                </div>
-                <button class="star-btn" id="starBtn" title="添加/取消自选">
-                    <span id="starIcon">☆</span> <span id="starText">自选</span>
-                </button>
-            </div>
-            <div class="price-block">
-                <div class="current-price" id="currentPrice">--</div>
-                <div class="change" id="changeInfo"></div>
-            </div>
-        </div>
-        <div class="meta-grid">
-            <div class="meta-item"><span class="meta-label">今开</span><span class="meta-value" id="open">--</span></div>
-            <div class="meta-item"><span class="meta-label">昨收</span><span class="meta-value" id="prevClose">--</span></div>
-            <div class="meta-item"><span class="meta-label">最高</span><span class="meta-value" id="high">--</span></div>
-            <div class="meta-item"><span class="meta-label">最低</span><span class="meta-value" id="low">--</span></div>
-            <div class="meta-item"><span class="meta-label">成交量</span><span class="meta-value" id="volume">--</span></div>
-            <div class="meta-item"><span class="meta-label">成交额</span><span class="meta-value" id="amount">--</span></div>
-        </div>
-
-        <!-- 持仓盈亏面板 -->
-        <div class="portfolio-panel">
-            <div class="portfolio-inputs">
-                <div class="input-group">
-                    <label>成本价 (¥)</label>
-                    <input type="number" id="buyPriceInput" placeholder="如: 10.50" step="0.01" min="0">
-                </div>
-                <div class="input-group">
-                    <label>数量 (股)</label>
-                    <input type="number" id="buyAmountInput" placeholder="如: 1000" step="100" min="0">
-                </div>
-            </div>
-            <div class="portfolio-results" id="portfolioResults">
-                <div class="p-result-item">
-                    <span class="p-result-label">总成本</span>
-                    <span class="p-result-value" id="totalCost">--</span>
-                </div>
-                <div class="p-result-item">
-                    <span class="p-result-label">市值</span>
-                    <span class="p-result-value" id="marketValue">--</span>
-                </div>
-                <div class="p-result-item">
-                    <span class="p-result-label">盈亏额</span>
-                    <span class="p-result-value amount" id="profitAmount">--</span>
-                </div>
-                <div class="p-result-item">
-                    <span class="p-result-label">盈亏率</span>
-                    <span class="p-result-value" id="profitPercent">--</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 图表组（用于横屏并排显示） -->
-    <div class="chart-wrapper-group">
-        <!-- 历史日K线 -->
-        <div class="chart-container" id="historyChartBox">
-            <h2>📜 历史日K线</h2>
-            <div class="chart-box" id="historyChart"></div>
-        </div>
-
-        <!-- 今日分时走势 -->
-        <div class="chart-container" id="timelineChartBox">
-            <h2>
-                <span>📈 分时走势</span>
-                <span id="liveIndicator" style="display:none; font-size:0.75rem; font-weight:normal; color:#8b949e;">
-                    <span class="pulse-dot"></span>实时
-                </span>
-            </h2>
-            <div class="chart-box" id="timelineChart"></div>
-        </div>
-    </div>
-
-    <div class="footer">
-        数据：腾讯/东财（<a href="https://stock-sdk.linkdiary.cn/" target="_blank">stock-sdk</a>）<br>
-        数据可能有延迟，仅供参考，不构成投资建议。
-    </div>
+<div class="hud" id="hud" style="display:none">
+  <div>
+    <div class="label">SCORE</div>
+    <div class="score" id="score">0</div>
+  </div>
+  <div class="right">
+    <div class="label">BEST</div>
+    <div class="val" id="bestHud">0</div>
+  </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<div class="overlay" id="startScreen">
+  <div class="card">
+    <div class="title">星际穿梭</div>
+    <div class="subtitle">Star Runner</div>
+    <div class="tips">
+      移动<b>鼠标</b> 或 <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>
+      <span class="key">↑↓←→</span> 操控飞船<br>
+      躲避<b style="color:#ff3d8b">红色障碍</b>，收集<b style="color:#5cffc0">绿色能量球</b><br>
+      速度会越来越快，飞得越久分数越高
+    </div>
+    <button class="btn" id="startBtn">开始飞行</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overScreen">
+  <div class="card">
+    <div class="subtitle">飞行结束</div>
+    <div class="bigscore" id="finalScore">0</div>
+    <div class="best" id="finalBest">最高分 0</div>
+    <button class="btn" id="retryBtn">再来一次</button>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+
 <script type="module">
-    import { StockSDK } from 'https://unpkg.com/stock-sdk@1.10.1/dist/index.js';
+import * as THREE from 'three';
 
-    const sdk = new StockSDK();
-    
-    // DOM 获取略...
-    const codeInput = document.getElementById('codeInput');
-    const searchBtn = document.getElementById('searchBtn');
-    const refreshRateSelect = document.getElementById('refreshRate');
-    const suggestionsEl = document.getElementById('suggestions');
-    const watchlistBar = document.getElementById('watchlistBar');
-    const statusEl = document.getElementById('status');
-    const quoteCard = document.getElementById('quoteCard');
-    const starBtn = document.getElementById('starBtn');
-    const starIcon = document.getElementById('starIcon');
-    const starText = document.getElementById('starText');
-    const buyPriceInput = document.getElementById('buyPriceInput');
-    const buyAmountInput = document.getElementById('buyAmountInput');
-    const totalCostEl = document.getElementById('totalCost');
-    const marketValueEl = document.getElementById('marketValue');
-    const profitAmountEl = document.getElementById('profitAmount');
-    const profitPercentEl = document.getElementById('profitPercent');
-    const historyChartBox = document.getElementById('historyChartBox');
-    const timelineChartBox = document.getElementById('timelineChartBox');
-    const liveIndicator = document.getElementById('liveIndicator');
+/* ═══════════ 基础工具 ═══════════ */
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const damp  = (k,dt)=>1-Math.exp(-k*dt);
+const rnd   = (a,b)=>a+Math.random()*(b-a);
 
-    let currentCode = 'sh600519';
-    let currentStockName = '贵州茅台';
-    let currentPriceVal = 0;
-    let refreshTimer = null;
-    let suggestionItems = [];
-    let currentInterval = parseInt(refreshRateSelect.value, 10);
-    let fetchSeq = 0;
-    let historyChart = null;
-    let timelineChart = null;
+/* ═══════════ DOM ═══════════ */
+const container   = document.getElementById('game');
+const scoreEl     = document.getElementById('score');
+const bestEl      = document.getElementById('bestHud');
+const hudEl       = document.getElementById('hud');
+const startScreen = document.getElementById('startScreen');
+const overScreen  = document.getElementById('overScreen');
+const finalScoreEl= document.getElementById('finalScore');
+const finalBestEl = document.getElementById('finalBest');
+const flashEl     = document.getElementById('flash');
 
-    // 存储逻辑省略...
-    const WATCHLIST_KEY = 'stock_watchlist';
-    const PORTFOLIO_KEY = 'stock_portfolio';
-    function getWatchlist() { try { return JSON.parse(localStorage.getItem(WATCHLIST_KEY)) || []; } catch { return []; } }
-    function saveWatchlist(list) { localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list)); }
-    function isInWatchlist(code) { return getWatchlist().some(item => item.code === code); }
-    function toggleWatchlist(code, name) {
-        let list = getWatchlist();
-        const index = list.findIndex(item => item.code === code);
-        if (index >= 0) list.splice(index, 1); else list.push({ code, name }); 
-        saveWatchlist(list); renderWatchlist(); updateStarBtnState(code);
-    }
-    function getPortfolioData() { try { return JSON.parse(localStorage.getItem(PORTFOLIO_KEY)) || {}; } catch { return {}; } }
-    function getStockPortfolio(code) { const data = getPortfolioData(); return data[code] || { buyPrice: '', buyAmount: '' }; }
-    function saveStockPortfolio(code, buyPrice, buyAmount) {
-        const data = getPortfolioData();
-        if (!buyPrice && !buyAmount) delete data[code]; else data[code] = { buyPrice, buyAmount };
-        localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(data));
-    }
+/* ═══════════ 渲染器 ═══════════ */
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x02030a, 0.0105);
 
-    function updatePortfolioCalc() {
-        const buyPrice = parseFloat(buyPriceInput.value);
-        const buyAmount = parseInt(buyAmountInput.value, 10);
-        const curPrice = currentPriceVal;
-        if (!buyPrice || !buyAmount || !curPrice || isNaN(buyPrice) || isNaN(buyAmount)) {
-            totalCostEl.textContent = '--'; marketValueEl.textContent = '--';
-            profitAmountEl.textContent = '--'; profitPercentEl.textContent = '--';
-            profitAmountEl.className = 'p-result-value amount';
-            profitPercentEl.className = 'p-result-value';
-            return;
-        }
-        const totalCost = buyPrice * buyAmount;
-        const marketValue = curPrice * buyAmount;
-        const profitAmount = marketValue - totalCost;
-        const profitPercent = (profitAmount / totalCost) * 100;
-        
-        // 移动端显示更紧凑，避免超出宽度
-        totalCostEl.textContent = `¥${(totalCost/1000).toFixed(1)}k`;
-        marketValueEl.textContent = `¥${(marketValue/1000).toFixed(1)}k`;
-        const sign = profitAmount > 0 ? '+' : '';
-        profitAmountEl.textContent = `${sign}${profitAmount.toFixed(0)}`;
-        profitPercentEl.textContent = `${sign}${profitPercent.toFixed(2)}%`;
-        const colorClass = profitAmount > 0 ? 'up' : (profitAmount < 0 ? 'down' : 'flat');
-        profitAmountEl.className = `p-result-value amount ${colorClass}`;
-        profitPercentEl.className = `p-result-value ${colorClass}`;
-    }
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 420);
+camera.position.set(0, 2.6, 8.6);
+camera.lookAt(0, 0, -16);
 
-    [buyPriceInput, buyAmountInput].forEach(input => {
-        input.addEventListener('input', () => {
-            saveStockPortfolio(currentCode, buyPriceInput.value, buyAmountInput.value);
-            updatePortfolioCalc();
-        });
-    });
-    function loadPortfolioToInputs(code) {
-        const p = getStockPortfolio(code);
-        buyPriceInput.value = p.buyPrice || ''; buyAmountInput.value = p.buyAmount || '';
-        updatePortfolioCalc();
-    }
+const renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x02030a, 1);
+container.appendChild(renderer.domElement);
 
-    function renderWatchlist() {
-        const list = getWatchlist();
-        if (list.length === 0) {
-            watchlistBar.innerHTML = '<div class="watch-empty">暂无自选，搜索后点击「自选」添加</div>'; return;
-        }
-        watchlistBar.innerHTML = list.map(item => `
-            <div class="watch-item ${item.code === currentCode ? 'active' : ''}" data-code="${item.code}" data-name="${item.name}">
-                <span class="w-name">${item.name}</span><span class="w-code">${item.code.toUpperCase()}</span>
-                <span class="w-del" data-code="${item.code}">×</span>
-            </div>`).join('');
-        watchlistBar.querySelectorAll('.watch-item').forEach(el => {
-            el.addEventListener('click', (e) => {
-                if (e.target.classList.contains('w-del')) return;
-                const code = el.dataset.code; const name = el.dataset.name;
-                codeInput.value = name; stopAutoRefresh();
-                refreshAll(code).then(() => { if (!refreshTimer) startAutoRefresh(); });
-            });
-        });
-        watchlistBar.querySelectorAll('.w-del').forEach(el => {
-            el.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const code = el.dataset.code; const name = getWatchlist().find(i => i.code === code)?.name || '';
-                toggleWatchlist(code, name);
-            });
-        });
-    }
+/* ═══════════ 灯光 ═══════════ */
+scene.add(new THREE.AmbientLight(0x6688cc, 1.7));
 
-    function updateStarBtnState(code) {
-        const starred = isInWatchlist(code);
-        starBtn.classList.toggle('starred', starred);
-        starIcon.textContent = starred ? '★' : '☆';
-        starText.textContent = starred ? '已自选' : '自选';
-    }
+const keyLight = new THREE.DirectionalLight(0xbfe8ff, 2.4);
+keyLight.position.set(4, 8, 6);
+scene.add(keyLight);
 
-    const fmtPrice = (v) => (v == null || isNaN(v)) ? '--' : Number(v).toFixed(2);
-    const fmtVolume = (v) => {
-        if (v == null || isNaN(v)) return '--';
-        const n = Number(v);
-        if (n >= 1e8) return (n / 1e8).toFixed(2) + '亿';
-        if (n >= 1e4) return (n / 1e4).toFixed(2) + '万';
-        return n.toString();
-    };
-    const fmtAmount = (v) => {
-        if (v == null || isNaN(v)) return '--';
-        const n = Number(v);
-        if (n >= 1e8) return (n / 1e8).toFixed(2) + '亿';
-        if (n >= 1e4) return (n / 1e4).toFixed(2) + '万';
-        return n.toFixed(2);
-    };
-    const setStatus = (msg, isError = false) => {
-        statusEl.innerHTML = msg; statusEl.className = 'status' + (isError ? ' error' : '');
-    };
-    const applyColor = (el, value) => {
-        el.classList.remove('up', 'down', 'flat');
-        if (value > 0) el.classList.add('up');
-        else if (value < 0) el.classList.add('down');
-        else el.classList.add('flat');
-    };
-    function normalizeCode(code) {
-        if (!code) return code;
-        let c = String(code).trim();
-        if (/^(sh|sz|bj|hk|us)/i.test(c)) return c.toLowerCase();
-        if (/^\d{6}$/.test(c)) {
-            if (c[0] === '6') return 'sh' + c;
-            if (c[0] === '0' || c[0] === '3') return 'sz' + c;
-            if (c[0] === '8' || c[0] === '4') return 'bj' + c;
-        }
-        if (/^\d{5}$/.test(c)) return 'hk' + c;
-        if (/^[a-z]+$/i.test(c)) return c.toLowerCase();
-        return c;
-    }
+const rimLight = new THREE.DirectionalLight(0xff4a9a, 1.3);
+rimLight.position.set(-6, -5, -9);
+scene.add(rimLight);
 
-    async function searchStocks(keyword) {
-        const results = await sdk.search(keyword);
-        if (!results || results.length === 0) return [];
-        return results.filter(r => !r.category || r.category.toLowerCase() === 'stock');
-    }
-    function renderSuggestions(results) {
-        suggestionItems = results;
-        if (results.length === 0) { suggestionsEl.style.display = 'none'; return; }
-        suggestionsEl.innerHTML = results.map((r, i) => `
-            <div class="suggestion-item" data-index="${i}">
-                <span><span class="s-name">${r.name || '--'}</span><span class="s-code">${r.code || ''}</span></span>
-                <span class="s-market">${(r.market || '').toUpperCase()}</span>
-            </div>`).join('');
-        suggestionsEl.style.display = 'block';
-        suggestionsEl.querySelectorAll('.suggestion-item').forEach(el => {
-            el.addEventListener('click', () => selectSuggestion(Number(el.dataset.index)));
-        });
-    }
-    function hideSuggestions() { suggestionsEl.style.display = 'none'; }
-    function selectSuggestion(index) {
-        const item = suggestionItems[index];
-        if (!item) return;
-        hideSuggestions(); codeInput.value = item.name || item.code;
-        stopAutoRefresh(); refreshAll(item.code).then(() => startAutoRefresh());
-    }
+/* ═══════════ 飞船 ═══════════ */
+function buildShip(){
+  const g = new THREE.Group();
 
-    async function fetchQuote(code, seq) {
-        const quotes = await sdk.getSimpleQuotes([code]);
-        if (seq !== fetchSeq) return;
-        if (!quotes || quotes.length === 0) throw new Error(`未找到代码 “${code}” 的行情数据`);
-        const q = quotes[0];
-        currentStockName = q.name || code;
-        currentPriceVal = q.price || 0;
+  // 机身（四棱锥，尖头朝 -Z）
+  const bodyGeo = new THREE.ConeGeometry(0.46, 1.9, 4, 1);
+  bodyGeo.rotateX(-Math.PI/2);
+  bodyGeo.rotateZ(Math.PI/4);
+  const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({
+    color:0x9fe9ff, emissive:0x1b7fa8, emissiveIntensity:0.9,
+    metalness:1, roughness:0.18, flatShading:true
+  }));
+  g.add(body);
 
-        document.getElementById('stockName').textContent = currentStockName;
-        document.getElementById('stockCode').textContent = q.code || code;
-        document.getElementById('currentPrice').textContent = fmtPrice(q.price);
-        const change = q.change ?? (q.price - q.prevClose);
-        const changePct = q.changePercent ?? (change / q.prevClose * 100);
-        const changeEl = document.getElementById('changeInfo');
-        const sign = change > 0 ? '+' : '';
-        changeEl.textContent = `${sign}${fmtPrice(change)} (${sign}${(changePct || 0).toFixed(2)}%)`;
-        applyColor(changeEl, change); applyColor(document.getElementById('currentPrice'), change);
+  // 座舱
+  const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10),
+    new THREE.MeshStandardMaterial({
+      color:0x06202e, emissive:0x00e5ff, emissiveIntensity:1.8,
+      metalness:1, roughness:0.05
+    }));
+  cockpit.position.set(0, 0.14, -0.18);
+  cockpit.scale.set(1, 0.7, 1.6);
+  g.add(cockpit);
 
-        document.getElementById('open').textContent = fmtPrice(q.open);
-        document.getElementById('prevClose').textContent = fmtPrice(q.prevClose);
-        document.getElementById('high').textContent = fmtPrice(q.high);
-        document.getElementById('low').textContent = fmtPrice(q.low);
-        document.getElementById('volume').textContent = fmtVolume(q.volume);
-        document.getElementById('amount').textContent = fmtAmount(q.amount);
+  // 机翼
+  const wingMat = new THREE.MeshStandardMaterial({
+    color:0x2f8fc4, emissive:0x0a3a55, metalness:1, roughness:0.3, flatShading:true
+  });
+  const wings = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.09, 0.62), wingMat);
+  wings.position.set(0, -0.06, 0.44);
+  g.add(wings);
 
-        quoteCard.style.display = 'block';
-        updateStarBtnState(code);
-        updatePortfolioCalc();
-        return q;
-    }
+  const tipGeo = new THREE.BoxGeometry(0.13, 0.32, 0.5);
+  for (const s of [-1, 1]){
+    const t = new THREE.Mesh(tipGeo, wingMat);
+    t.position.set(s * 0.87, 0.09, 0.44);
+    g.add(t);
+  }
 
-    async function initHistoryChart(code, seq) {
-        try {
-            const klines = await sdk.getHistoryKline(code, { period: 'daily' });
-            if (seq !== fetchSeq) return;
-            if (!klines || klines.length === 0) { historyChartBox.style.display = 'none'; return; }
+  // 引擎核心
+  const engine = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10),
+    new THREE.MeshBasicMaterial({color:0x7dfbff}));
+  engine.position.set(0, 0, 0.92);
+  engine.scale.set(1, 1, 1.7);
+  g.add(engine);
 
-            if (!historyChart) {
-                historyChart = echarts.init(document.getElementById('historyChart'), 'dark');
-                // 监听窗口大小变化，解决横竖屏切换时的尺寸问题
-                window.addEventListener('resize', () => historyChart?.resize());
-                // 监听设备旋转事件，专门针对手机
-                window.addEventListener('orientationchange', () => setTimeout(() => historyChart?.resize(), 200));
-            }
+  // 尾焰光晕
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12),
+    new THREE.MeshBasicMaterial({
+      color:0x2fd8ff, transparent:true, opacity:0.22,
+      depthWrite:false, blending:THREE.AdditiveBlending
+    }));
+  glow.position.set(0, 0, 1.15);
+  glow.scale.set(1, 1, 2.4);
+  g.add(glow);
 
-            const dates = klines.map(k => k.date);
-            const candles = klines.map(k => [k.open, k.close, k.low, k.high]);
-            const volumes = klines.map(k => ({
-                value: k.volume,
-                itemStyle: { color: k.close >= k.open ? '#f85149' : '#3fb950' }
-            }));
+  // 引擎灯
+  const lamp = new THREE.PointLight(0x33e8ff, 34, 26, 2);
+  lamp.position.set(0, 0, 1.6);
+  g.add(lamp);
 
-            // 🌟 核心配置优化：缩减 grid 边距，让图表在手机上横向铺满
-            historyChart.setOption({
-                backgroundColor: 'transparent',
-                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-                axisPointer: { link: [{ xAxisIndex: 'all' }] },
-                grid: [
-                    { left: '3%', right: '3%', top: '5%', height: '60%' }, // 左右边距缩小至 3%
-                    { left: '3%', right: '3%', top: '75%', height: '15%' } // 减少底部留白
-                ],
-                xAxis: [
-                    { type: 'category', data: dates, gridIndex: 0, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#30363d' } } },
-                    { type: 'category', data: dates, gridIndex: 1, axisLabel: { color: '#8b949e', fontSize: 10 }, axisLine: { lineStyle: { color: '#30363d' } } }
-                ],
-                yAxis: [
-                    { type: 'value', gridIndex: 0, scale: true, axisLabel: { color: '#8b949e', fontSize: 10 }, splitLine: { lineStyle: { color: '#21262d' } } },
-                    { type: 'value', gridIndex: 1, scale: true, axisLabel: { show: false }, splitLine: { show: false } }
-                ],
-                dataZoom: [
-                    // 🌟 开启双指/滚轮缩放，强制在手机上响应
-                    { type: 'inside', xAxisIndex: [0, 1], start: 60, end: 100, zoomOnMouseWheel: true, moveOnMouseMove: true },
-                    // 底部滑块变大，方便手机触摸操作
-                    { type: 'slider', xAxisIndex: [0, 1], bottom: 0, height: 16, start: 60, end: 100, textStyle: { color: '#8b949e' } }
-                ],
-                series: [
-                    { name: '日K', type: 'candlestick', data: candles, xAxisIndex: 0, yAxisIndex: 0, itemStyle: { color: '#f85149', color0: '#3fb950', borderColor: '#f85149', borderColor0: '#3fb950' } },
-                    { name: '成交量', type: 'bar', data: volumes, xAxisIndex: 1, yAxisIndex: 1 }
-                ]
-            }, true);
+  return g;
+}
 
-            historyChartBox.style.display = 'block';
-            setTimeout(() => historyChart?.resize(), 100); // 延迟 resize 确保容器已显示
-        } catch (err) {
-            if (seq !== fetchSeq) return;
-            console.error('历史K线加载失败:', err);
-            historyChartBox.style.display = 'none';
-        }
-    }
+const ship = buildShip();
+scene.add(ship);
 
-    async function refreshTimelineChart(code, seq) {
-        try {
-            const timeline = await sdk.getTodayTimeline(code);
-            if (seq !== fetchSeq) return;
-            if (!timeline || !timeline.data || timeline.data.length === 0) { timelineChartBox.style.display = 'none'; return; }
+/* ═══════════ 隧道环 ═══════════ */
+const RING_RADIUS = 6.6, RING_GAP = 13, RING_COUNT = 16;
+const ringGeo = new THREE.TorusGeometry(RING_RADIUS, 0.045, 6, 72);
+const rings = [];
+for (let i = 0; i < RING_COUNT; i++){
+  const mat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color().setHSL(0.52 + Math.random()*0.10, 0.9, 0.55),
+    transparent:true, opacity:0.42, depthWrite:false
+  });
+  const r = new THREE.Mesh(ringGeo, mat);
+  r.position.z = -i * RING_GAP;
+  scene.add(r);
+  rings.push(r);
+}
 
-            if (!timelineChart) {
-                timelineChart = echarts.init(document.getElementById('timelineChart'), 'dark');
-                window.addEventListener('resize', () => timelineChart?.resize());
-                window.addEventListener('orientationchange', () => setTimeout(() => timelineChart?.resize(), 200));
-            }
+/* ═══════════ 星空 ═══════════ */
+const STAR_COUNT = 1200, STAR_RANGE = 200;
+const starPos = new Float32Array(STAR_COUNT * 3);
+for (let i = 0; i < STAR_COUNT; i++){
+  const a = Math.random() * Math.PI * 2;
+  const rad = 8 + Math.random() * 72;
+  starPos[i*3]   = Math.cos(a) * rad;
+  starPos[i*3+1] = Math.sin(a) * rad;
+  starPos[i*3+2] = -Math.random() * STAR_RANGE + 20;
+}
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
+  color:0xaad4ff, size:0.55, sizeAttenuation:true,
+  transparent:true, opacity:0.85, depthWrite:false
+}));
+scene.add(stars);
 
-            const preClose = timeline.preClose ?? timeline.data[0]?.price ?? null;
-            const times = timeline.data.map(d => d.time);
-            const prices = timeline.data.map(d => d.price);
-            const avgPrices = timeline.data.map(d => d.avgPrice);
-            const lastPrice = prices[prices.length - 1];
-            const isUp = preClose ? lastPrice >= preClose : true;
-            const priceColor = isUp ? '#f85149' : '#3fb950';
-            const markLineData = preClose ? [{ yAxis: preClose, lineStyle: { color: '#8b949e', type: 'dashed', width: 1 }, label: { formatter: '昨收', color: '#8b949e', position: 'insideEndTop', fontSize: 10 } }] : [];
+/* ═══════════ 障碍物资源 ═══════════ */
+const OBSTACLE_GEOS = [
+  new THREE.IcosahedronGeometry(1, 0),
+  new THREE.OctahedronGeometry(1.05, 0),
+  new THREE.DodecahedronGeometry(0.95, 0),
+  new THREE.BoxGeometry(1.4, 1.4, 1.4),
+  new THREE.TetrahedronGeometry(1.2, 0)
+];
+const obstacleMat = new THREE.MeshStandardMaterial({
+  color:0xff2f74, emissive:0xb3003f, emissiveIntensity:1.3,
+  metalness:0.75, roughness:0.32, flatShading:true
+});
 
-            // 🌟 同样缩减 grid，并在手机上启用 inside 缩放
-            timelineChart.setOption({
-                backgroundColor: 'transparent',
-                tooltip: {
-                    trigger: 'axis', axisPointer: { type: 'cross' },
-                    formatter: (params) => {
-                        const p = params[0]; const d = timeline.data[p.dataIndex];
-                        if (!d) return '';
-                        return `${d.time}<br/>价：${fmtPrice(d.price)}<br/>均：${fmtPrice(d.avgPrice)}<br/>量：${fmtVolume(d.volume)}`;
-                    }
-                },
-                grid: { left: '3%', right: '3%', top: '8%', bottom: '12%' },
-                xAxis: { 
-                    type: 'category', data: times, boundaryGap: false, 
-                    axisLabel: { color: '#8b949e', fontSize: 10, formatter: (v) => v.slice(0, 5) }, 
-                    axisLine: { lineStyle: { color: '#30363d' } } 
-                },
-                yAxis: { 
-                    type: 'value', scale: true, 
-                    axisLabel: { color: '#8b949e', fontSize: 10, formatter: (v) => v.toFixed(1) }, 
-                    splitLine: { lineStyle: { color: '#21262d' } } 
-                },
-                dataZoom: [
-                    // 分时图也允许缩放，防止横屏时数据过于密集
-                    { type: 'inside', xAxisIndex: 0, start: 0, end: 100 }
-                ],
-                series: [
-                    { name: '价格', type: 'line', data: prices, lineStyle: { color: priceColor, width: 1.5 }, showSymbol: false, smooth: true, markLine: { symbol: 'none', data: markLineData } },
-                    { name: '均价', type: 'line', data: avgPrices, lineStyle: { color: '#d29922', width: 1, type: 'dotted' }, showSymbol: false, smooth: true }
-                ]
-            }, true);
+/* ═══════════ 能量球资源 ═══════════ */
+const orbCoreGeo = new THREE.IcosahedronGeometry(0.34, 1);
+const orbCoreMat = new THREE.MeshBasicMaterial({color:0x8dffd6});
+const orbGlowGeo = new THREE.SphereGeometry(0.66, 16, 12);
+const orbGlowMat = new THREE.MeshBasicMaterial({
+  color:0x5cffc0, transparent:true, opacity:0.22,
+  depthWrite:false, blending:THREE.AdditiveBlending
+});
 
-            timelineChartBox.style.display = 'block';
-            liveIndicator.style.display = 'inline-block';
-            setTimeout(() => timelineChart?.resize(), 100);
-        } catch (err) {
-            if (seq !== fetchSeq) return;
-            console.error('分时数据加载失败:', err);
-            timelineChartBox.style.display = 'none';
-        }
+/* ═══════════ 游戏数据 ═══════════ */
+const LIMIT_X = 4.7, LIMIT_Y = 3.3, PLACE_R = 5.0;
+
+const obstacles = [];
+const orbs = [];
+
+let scrollSpeed = 0;
+let pointerActive = false;
+let pointerTargetX = 0, pointerTargetY = 0;
+let prevShipX = 0, prevShipY = 0;
+
+const state = {
+  mode: 'ready',
+  speed: 38,
+  baseSpeed: 38,
+  maxSpeed: 108,
+  elapsed: 0,
+  traveled: 0,
+  nextSpawn: 0,
+  score: 0,
+  best: +(localStorage.getItem('starrunner_best') || 0)
+};
+
+/* ═══════════ 音效 ═══════════ */
+let audioCtx = null;
+function initAudio(){
+  if (!audioCtx){
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function sfxPickup(){
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(760, t);
+  o.frequency.exponentialRampToValueAtTime(1500, t + 0.10);
+  g.gain.setValueAtTime(0.13, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + 0.14);
+}
+function sfxBoom(){
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const len = Math.floor(audioCtx.sampleRate * 0.6);
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 2.2);
+  const src = audioCtx.createBufferSource(); src.buffer = buf;
+  const flt = audioCtx.createBiquadFilter(); flt.type='lowpass'; flt.frequency.value = 850;
+  const g = audioCtx.createGain(); g.gain.value = 0.4;
+  src.connect(flt); flt.connect(g); g.connect(audioCtx.destination);
+  src.start(t);
+}
+
+/* ═══════════ 生成逻辑 ═══════════ */
+function spawnObstacle(){
+  const geo = OBSTACLE_GEOS[(Math.random()*OBSTACLE_GEOS.length)|0];
+  const mesh = new THREE.Mesh(geo, obstacleMat);
+  const a = Math.random() * Math.PI * 2;
+  const r = Math.sqrt(Math.random()) * PLACE_R;
+  const s = rnd(0.55, 1.05);
+  mesh.position.set(Math.cos(a)*r, Math.sin(a)*r, -135 - Math.random()*25);
+  mesh.scale.setScalar(s);
+  mesh.rotation.set(Math.random()*6.28, Math.random()*6.28, Math.random()*6.28);
+  scene.add(mesh);
+  obstacles.push({
+    mesh,
+    radius: s * 1.0,
+    spin: { x: rnd(-1.6,1.6), y: rnd(-1.6,1.6) }
+  });
+}
+
+function spawnOrb(){
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(orbGlowGeo, orbGlowMat));
+  const core = new THREE.Mesh(orbCoreGeo, orbCoreMat);
+  g.add(core);
+  const a = Math.random() * Math.PI * 2;
+  const r = Math.sqrt(Math.random()) * 4.2;
+  g.position.set(Math.cos(a)*r, Math.sin(a)*r, -130 - Math.random()*22);
+  scene.add(g);
+  orbs.push({ mesh:g, core });
+}
+
+function spawnWave(){
+  const t = Math.min(1, state.elapsed / 80);
+  const count = 2 + Math.round(Math.random() * (1 + t * 3));
+  for (let i = 0; i < count; i++) spawnObstacle();
+  if (Math.random() < 0.36) spawnOrb();
+}
+
+function spawnLogic(){
+  if (state.traveled < state.nextSpawn) return;
+  const t = Math.min(1, state.elapsed / 80);
+  const interval = 0.95 - 0.42 * t;          // 波次之间的「时间」间隔
+  state.nextSpawn = state.traveled + state.speed * interval;
+  spawnWave();
+}
+
+/* ═══════════ 飞船操控 ═══════════ */
+const keys = new Set();
+
+function updateShip(dt){
+  let dirX = 0, dirY = 0;
+  if (keys.has('a') || keys.has('arrowleft'))  dirX -= 1;
+  if (keys.has('d') || keys.has('arrowright')) dirX += 1;
+  if (keys.has('w') || keys.has('arrowup'))    dirY += 1;
+  if (keys.has('s') || keys.has('arrowdown'))  dirY -= 1;
+
+  if (dirX || dirY){
+    ship.position.x += dirX * 15 * dt;
+    ship.position.y += dirY * 15 * dt;
+    pointerTargetX = ship.position.x;
+    pointerTargetY = ship.position.y;
+  } else if (pointerActive){
+    const k = damp(17, dt);
+    ship.position.x += (pointerTargetX - ship.position.x) * k;
+    ship.position.y += (pointerTargetY - ship.position.y) * k;
+  }
+
+  ship.position.x = clamp(ship.position.x, -LIMIT_X, LIMIT_X);
+  ship.position.y = clamp(ship.position.y, -LIMIT_Y, LIMIT_Y);
+
+  // 根据速度做倾斜，增强手感
+  const vx = (ship.position.x - prevShipX) / Math.max(dt, 1e-4);
+  const vy = (ship.position.y - prevShipY) / Math.max(dt, 1e-4);
+  const k = damp(11, dt);
+  ship.rotation.z += (-vx * 0.035 - ship.rotation.z) * k;
+  ship.rotation.x += ( vy * 0.030 - ship.rotation.x) * k;
+  ship.rotation.y += (0 - ship.rotation.y) * k;
+
+  prevShipX = ship.position.x;
+  prevShipY = ship.position.y;
+}
+
+/* ═══════════ 世界更新 ═══════════ */
+function updateWorld(dt){
+  const dz = scrollSpeed * dt;
+
+  // 隧道环
+  for (const r of rings){
+    r.position.z += dz;
+    if (r.position.z > 14) r.position.z -= RING_COUNT * RING_GAP;
+  }
+
+  // 星空
+  const sp = starGeo.attributes.position;
+  for (let i = 0; i < STAR_COUNT; i++){
+    let z = sp.array[i*3+2] + dz * 0.6;
+    if (z > 20) z -= STAR_RANGE;
+    sp.array[i*3+2] = z;
+  }
+  sp.needsUpdate = true;
+
+  // 障碍物
+  for (let i = obstacles.length - 1; i >= 0; i--){
+    const o = obstacles[i];
+    const prevZ = o.mesh.position.z;
+    o.mesh.position.z += dz;
+    o.mesh.rotation.x += o.spin.x * dt;
+    o.mesh.rotation.y += o.spin.y * dt;
+
+    if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
+      const dx = o.mesh.position.x - ship.position.x;
+      const dy = o.mesh.position.y - ship.position.y;
+      if (Math.hypot(dx, dy) < o.radius + 0.5){ crash(); }
     }
 
-    async function refreshAll(rawCode, showSpinner = true) {
-        const seq = ++fetchSeq;
-        if (showSpinner) { searchBtn.disabled = true; setStatus('<span class="spinner"></span>正在获取行情...'); }
-        const code = normalizeCode(rawCode);
-        let quoteOk = false; let quoteErr = null;
+    if (o.mesh.position.z > 16){
+      scene.remove(o.mesh);
+      obstacles.splice(i, 1);
+    }
+  }
 
-        try {
-            await fetchQuote(code, seq);
-            if (seq !== fetchSeq) return;
-            quoteOk = true; currentCode = code;
-            renderWatchlist(); loadPortfolioToInputs(code);
-        } catch (err) {
-            if (seq !== fetchSeq) return;
-            quoteErr = err;
-        }
+  // 能量球
+  for (let i = orbs.length - 1; i >= 0; i--){
+    const o = orbs[i];
+    const prevZ = o.mesh.position.z;
+    o.mesh.position.z += dz;
+    o.core.rotation.x += 2.2 * dt;
+    o.core.rotation.y += 3.0 * dt;
+    o.mesh.position.y += Math.sin(performance.now()*0.003 + i) * 0.004;
 
-        await Promise.all([ initHistoryChart(code, seq), refreshTimelineChart(code, seq) ]);
-        if (seq !== fetchSeq) return; 
-
-        if (quoteOk) {
-            const now = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-            if (showSpinner) setStatus(`✅ 更新：${now}`);
-        } else {
-            setStatus(`❌ 获取失败：${quoteErr?.message || '未知错误'}`, true);
-        }
-        if (showSpinner) searchBtn.disabled = false;
+    if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
+      const dx = o.mesh.position.x - ship.position.x;
+      const dy = o.mesh.position.y - ship.position.y;
+      if (Math.hypot(dx, dy) < 1.35){
+        state.score += 50;
+        sfxPickup();
+        scene.remove(o.mesh);
+        orbs.splice(i, 1);
+        continue;
+      }
     }
 
-    async function handleQuery() {
-        const raw = codeInput.value.trim();
-        if (!raw) { setStatus('请输入代码', true); return; }
-        hideSuggestions(); stopAutoRefresh(); searchBtn.disabled = true;
-        setStatus('<span class="spinner"></span>搜索中...');
-
-        try {
-            const results = await searchStocks(raw);
-            if (results.length === 0) { await refreshAll(raw); }
-            else if (results.length === 1) { const target = results[0]; codeInput.value = target.name; await refreshAll(target.code); }
-            else { renderSuggestions(results); setStatus(`找到 ${results.length} 个结果`); searchBtn.disabled = false; return; }
-            startAutoRefresh();
-        } catch (err) {
-            setStatus(`❌ 失败：${err.message || '网络错误'}`, true);
-        } finally {
-            searchBtn.disabled = false;
-        }
+    if (o.mesh.position.z > 16){
+      scene.remove(o.mesh);
+      orbs.splice(i, 1);
     }
+  }
+}
 
-    function startAutoRefresh() {
-        stopAutoRefresh();
-        liveIndicator.style.display = 'inline-block';
-        refreshTimer = setInterval(async () => {
-            if (document.visibilityState !== 'visible') return;
-            await refreshAll(currentCode, false);
-        }, currentInterval);
-    }
-    function stopAutoRefresh() {
-        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
-        liveIndicator.style.display = 'none';
-    }
+/* ═══════════ 相机 ═══════════ */
+function updateCamera(dt){
+  const k = damp(6, dt);
+  camera.position.x += (ship.position.x * 0.5 - camera.position.x) * k;
+  camera.position.y += (2.6 + ship.position.y * 0.5 - camera.position.y) * k;
+  camera.position.z = 8.6;
+  camera.lookAt(ship.position.x * 0.35, ship.position.y * 0.35 - 0.3, -16);
+}
 
-    searchBtn.addEventListener('click', handleQuery);
-    codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleQuery(); });
-    starBtn.addEventListener('click', () => { if (currentCode) toggleWatchlist(currentCode, currentStockName); });
-    refreshRateSelect.addEventListener('change', (e) => {
-        currentInterval = parseInt(e.target.value, 10);
-        if (refreshTimer) startAutoRefresh();
-    });
-    document.addEventListener('click', (e) => { if (!e.target.closest('.search-bar')) hideSuggestions(); });
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !refreshTimer) startAutoRefresh(); });
+/* ═══════════ 爆炸粒子 ═══════════ */
+const explosion = { points:null, vels:[], life:0, maxLife:1.3 };
 
-    (async function init() {
-        renderWatchlist();
-        await refreshAll('sh600519');
-        startAutoRefresh();
-    })();
+function createExplosion(pos){
+  const N = 110;
+  const positions = new Float32Array(N * 3);
+  const vels = [];
+  for (let i = 0; i < N; i++){
+    positions[i*3]   = pos.x;
+    positions[i*3+1] = pos.y;
+    positions[i*3+2] = pos.z;
+    const v = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5)
+      .normalize().multiplyScalar(3 + Math.random()*15);
+    vels.push(v);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({
+    color:0xffb04d, size:0.55, transparent:true, opacity:1,
+    depthWrite:false, blending:THREE.AdditiveBlending
+  });
+  const pts = new THREE.Points(geo, mat);
+  scene.add(pts);
+
+  explosion.points = pts;
+  explosion.vels = vels;
+  explosion.life = 1.3;
+  explosion.maxLife = 1.3;
+}
+
+function updateParticles(dt){
+  if (!explosion.points) return;
+  explosion.life -= dt;
+  if (explosion.life <= 0){
+    scene.remove(explosion.points);
+    explosion.points.geometry.dispose();
+    explosion.points.material.dispose();
+    explosion.points = null;
+    return;
+  }
+  const pos = explosion.points.geometry.attributes.position;
+  const drag = 1 - 2.2 * dt;
+  for (let i = 0; i < explosion.vels.length; i++){
+    const v = explosion.vels[i];
+    pos.array[i*3]   += v.x * dt;
+    pos.array[i*3+1] += v.y * dt;
+    pos.array[i*3+2] += v.z * dt;
+    v.multiplyScalar(drag);
+  }
+  pos.needsUpdate = true;
+  explosion.points.material.opacity = Math.max(0, explosion.life / explosion.maxLife);
+}
+
+/* ═══════════ 游戏流程 ═══════════ */
+function startGame(){
+  initAudio();
+
+  state.mode = 'playing';
+  state.elapsed = 0;
+  state.speed = state.baseSpeed;
+  state.traveled = 0;
+  state.nextSpawn = 45;
+  state.score = 0;
+
+  for (const o of obstacles) scene.remove(o.mesh);
+  obstacles.length = 0;
+  for (const o of orbs) scene.remove(o.mesh);
+  orbs.length = 0;
+
+  ship.visible = true;
+  ship.position.set(0, 0, 0);
+  ship.rotation.set(0, 0, 0);
+  prevShipX = 0; prevShipY = 0;
+  pointerTargetX = 0; pointerTargetY = 0;
+  pointerActive = false;
+
+  scoreEl.textContent = '0';
+  bestEl.textContent = state.best;
+  hudEl.style.display = 'flex';
+  startScreen.classList.add('hidden');
+  overScreen.classList.add('hidden');
+}
+
+function crash(){
+  if (state.mode !== 'playing') return;
+  state.mode = 'over';
+  ship.visible = false;
+
+  createExplosion(ship.position);
+  sfxBoom();
+
+  flashEl.style.opacity = '0.9';
+  setTimeout(() => { flashEl.style.opacity = '0'; }, 90);
+
+  const finalScore = Math.floor(state.score);
+  if (finalScore > state.best){
+    state.best = finalScore;
+    localStorage.setItem('starrunner_best', String(state.best));
+  }
+
+  setTimeout(() => {
+    finalScoreEl.textContent = finalScore;
+    finalBestEl.textContent = '最高分 ' + state.best;
+    overScreen.classList.remove('hidden');
+    hudEl.style.display = 'none';
+  }, 950);
+}
+
+/* ═══════════ 主循环 ═══════════ */
+const clock = new THREE.Clock();
+
+function update(dt){
+  const time = performance.now() * 0.001;
+
+  if (state.mode === 'playing'){
+    state.elapsed += dt;
+    const t = 1 - Math.exp(-state.elapsed / 45);
+    state.speed = state.baseSpeed + (state.maxSpeed - state.baseSpeed) * t;
+    state.traveled += state.speed * dt;
+    scrollSpeed = state.speed;
+
+    updateShip(dt);
+    spawnLogic();
+
+    state.score += state.speed * dt * 0.35;
+    scoreEl.textContent = Math.floor(state.score);
+
+  } else if (state.mode === 'ready'){
+    scrollSpeed = 22;
+    ship.position.y = Math.sin(time * 1.5) * 0.22;
+    ship.rotation.y = Math.sin(time * 0.6) * 0.25;
+    ship.rotation.z = Math.sin(time * 0.9) * 0.06;
+  } else {
+    scrollSpeed *= Math.exp(-4 * dt);
+    if (scrollSpeed < 0.4) scrollSpeed = 0;
+  }
+
+  updateWorld(dt);
+  updateParticles(dt);
+  updateCamera(dt);
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  update(dt);
+  renderer.render(scene, camera);
+}
+
+/* ═══════════ 输入 ═══════════ */
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+  keys.add(k);
+  if (k === ' ' && state.mode !== 'playing') startGame();
+});
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+addEventListener('blur', () => keys.clear());
+
+// 鼠标：绝对位置映射
+addEventListener('mousemove', e => {
+  if (state.mode !== 'playing') return;
+  const nx = (e.clientX / innerWidth) * 2 - 1;
+  const ny = -((e.clientY / innerHeight) * 2 - 1);
+  pointerTargetX = nx * LIMIT_X;
+  pointerTargetY = ny * LIMIT_Y;
+  pointerActive = true;
+});
+
+// 触摸：相对拖动
+let touchId = null, lastTX = 0, lastTY = 0;
+addEventListener('touchstart', e => {
+  if (state.mode !== 'playing') return;
+  const t = e.changedTouches[0];
+  touchId = t.identifier;
+  lastTX = t.clientX; lastTY = t.clientY;
+}, { passive:true });
+
+addEventListener('touchmove', e => {
+  if (state.mode !== 'playing' || touchId === null) return;
+  for (const t of e.changedTouches){
+    if (t.identifier !== touchId) continue;
+    const dx = t.clientX - lastTX;
+    const dy = t.clientY - lastTY;
+    lastTX = t.clientX; lastTY = t.clientY;
+    pointerTargetX = clamp(pointerTargetX + dx * 0.045, -LIMIT_X, LIMIT_X);
+    pointerTargetY = clamp(pointerTargetY - dy * 0.045, -LIMIT_Y, LIMIT_Y);
+    pointerActive = true;
+  }
+  e.preventDefault();
+}, { passive:false });
+
+addEventListener('touchend', e => {
+  for (const t of e.changedTouches){
+    if (t.identifier === touchId) touchId = null;
+  }
+}, { passive:true });
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('retryBtn').addEventListener('click', startGame);
+
+/* ═══════════ 自适应 ═══════════ */
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ═══════════ 启动 ═══════════ */
+bestEl.textContent = state.best;
+animate();
 </script>
 </body>
 </html>
