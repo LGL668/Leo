@@ -27,7 +27,7 @@
     backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
     transition:opacity .35s ease; z-index: 10;}
   .overlay.hidden{opacity:0;pointer-events:none}
-  .card{text-align:center;padding:40px 46px;max-width:480px}
+  .card{text-align:center;padding:40px 46px;max-width:480px;position:relative;}
 
   .title{font-size:46px;font-weight:900;letter-spacing:10px;
     background:linear-gradient(90deg,#3ee8ff,#5cffc0,#ff3d8b);
@@ -40,7 +40,7 @@
   .key{display:inline-block;padding:1px 9px;border:1px solid rgba(255,255,255,.22);
        border-radius:5px;font-size:12px;margin:0 2px;opacity:.9}
 
-  .btn-group{display:flex;gap:15px;justify-content:center;margin-top:10px;}
+  .btn-group{display:flex;gap:15px;justify-content:center;margin-top:10px;flex-wrap:wrap;}
   
   .btn{pointer-events:auto;cursor:pointer;border:none;border-radius:999px;
     padding:16px 40px;font-size:16px;font-weight:800;letter-spacing:3px;
@@ -53,6 +53,9 @@
   .btn-secondary{background:transparent;border:1px solid rgba(62,232,255,.35);color:#8fe3ff;box-shadow:none;}
   .btn-secondary:hover{background:rgba(62,232,255,.1);box-shadow:0 0 25px rgba(62,232,255,.2);}
 
+  .btn-reward {background: linear-gradient(135deg, #ff3d8b, #ff8a3d); color: #fff; box-shadow: 0 0 36px rgba(255,61,139,.5);}
+  .btn-reward:hover {box-shadow: 0 0 52px rgba(255,61,139,.85);}
+
   .version { font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,0.3); margin-top: 24px; font-family: monospace; }
 
   .bigscore{font-size:68px;font-weight:900;color:#fff;line-height:1;margin:16px 0 8px;
@@ -60,6 +63,27 @@
   .best{font-size:13px;letter-spacing:3px;opacity:.55;margin-bottom:30px}
   #flash{position:fixed;inset:0;background:#ff2d6f;opacity:0;pointer-events:none;
          transition:opacity .12s ease; z-index: 99;}
+
+  /* 赞赏弹窗特有样式 */
+  .qr-placeholder {
+    width: 180px; height: 180px; margin: 20px auto;
+    background: #fff; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .qr-placeholder img { 
+    width: 100%; height: 100%; object-fit: cover; 
+    position: absolute; inset: 0; z-index: 2;
+  }
+
+  .heart-particle {
+    position: fixed; pointer-events: none; z-index: 100;
+    font-size: 24px; animation: fall linear forwards;
+  }
+  @keyframes fall {
+    0% { transform: translateY(-50px) rotate(0deg) scale(1); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg) scale(0.5); opacity: 0; }
+  }
 </style>
 </head>
 <body>
@@ -78,6 +102,7 @@
   </div>
 </div>
 
+<!-- 开始界面 -->
 <div class="overlay" id="startScreen">
   <div class="card">
     <div class="title">星际穿梭</div>
@@ -88,11 +113,15 @@
       躲避<b style="color:#ff3d8b">太空垃圾</b>，收集<b style="color:#5cffc0">绿色能量球</b><br>
       感受赛道弯曲，跟随流星轨迹
     </div>
-    <button class="btn" id="startBtn">开始飞行</button>
+    <div class="btn-group">
+      <button class="btn" id="startBtn">开始飞行</button>
+      <button class="btn btn-reward" id="rewardBtn">赞赏作者 ☕</button>
+    </div>
     <div class="version">v1.0</div>
   </div>
 </div>
 
+<!-- 结束界面 -->
 <div class="overlay hidden" id="overScreen">
   <div class="card">
     <div class="subtitle">飞行结束</div>
@@ -101,7 +130,25 @@
     <div class="btn-group">
       <button class="btn" id="retryBtn">再来一次</button>
       <button class="btn btn-secondary" id="exitBtn">退出</button>
+      <button class="btn btn-reward" id="rewardBtn2">赞赏 ☕</button>
     </div>
+  </div>
+</div>
+
+<!-- 赞赏弹窗 -->
+<div class="overlay hidden" id="rewardModal" style="z-index: 20;">
+  <div class="card" style="background: rgba(10, 20, 35, 0.8); border: 1px solid rgba(62,232,255,0.2); border-radius: 20px;">
+    <div class="subtitle" style="color: var(--pink);">THANK YOU</div>
+    <div style="font-size: 20px; font-weight: bold; margin: 15px 0 5px;">感谢您的支持！</div>
+    <div style="font-size: 13px; opacity: 0.6; margin-bottom: 10px;">本游戏完全免费，您的支持是我更新的动力</div>
+    
+    <!-- 二维码：直接读取同目录下的 qrcode.png -->
+    <div class="qr-placeholder">
+      <img src="./qrcode.png" alt="赞赏码">
+    </div>
+    
+    <div style="font-size: 12px; opacity: 0.4; margin-bottom: 20px;">长按识别 / 扫码赞赏</div>
+    <button class="btn btn-secondary" id="closeRewardBtn" style="padding: 12px 40px; font-size: 14px;">关闭</button>
   </div>
 </div>
 
@@ -127,6 +174,7 @@ const overScreen  = document.getElementById('overScreen');
 const finalScoreEl= document.getElementById('finalScore');
 const finalBestEl = document.getElementById('finalBest');
 const flashEl     = document.getElementById('flash');
+const rewardModal = document.getElementById('rewardModal');
 
 /* ═══════════ 渲染器 / 场景 ═══════════ */
 const scene = new THREE.Scene();
@@ -298,7 +346,6 @@ function getTangent(z) {
 function buildShip(){
   const g = new THREE.Group();
   
-  // 材质定义
   const bodyMat = new THREE.MeshStandardMaterial({ 
     color: 0x2a3b4c, metalness: 0.9, roughness: 0.25, flatShading: true 
   });
@@ -306,7 +353,6 @@ function buildShip(){
     color: 0x00e5ff, emissive: 0x00e5ff, emissiveIntensity: 1.5, metalness: 1, roughness: 0.1 
   });
 
-  // 1. 主机身（扁平六边形柱体，压扁拉长）
   const bodyGeo = new THREE.CylinderGeometry(0.35, 0.08, 2.4, 6, 1);
   bodyGeo.rotateX(Math.PI / 2);
   bodyGeo.scale(1, 0.45, 1); 
@@ -314,18 +360,16 @@ function buildShip(){
   body.position.z = -0.2;
   g.add(body);
 
-  // 2. 座舱（发光流线型）
   const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), accentMat);
   cockpit.position.set(0, 0.1, -0.3);
   cockpit.scale.set(1, 0.6, 2.0);
   g.add(cockpit);
 
-  // 3. 后掠机翼（左右各一）
   const wingGeo = new THREE.BoxGeometry(1.8, 0.06, 0.6);
   
   const wingLeft = new THREE.Mesh(wingGeo, bodyMat);
   wingLeft.position.set(-0.7, 0, 0.4);
-  wingLeft.rotation.y = 0.35; // 后掠角
+  wingLeft.rotation.y = 0.35; 
   g.add(wingLeft);
 
   const wingRight = new THREE.Mesh(wingGeo, bodyMat);
@@ -333,7 +377,6 @@ function buildShip(){
   wingRight.rotation.y = -0.35;
   g.add(wingRight);
 
-  // 4. 发光翼尖
   const tipGeo = new THREE.BoxGeometry(0.08, 0.12, 0.8);
   const tipLeft = new THREE.Mesh(tipGeo, accentMat);
   tipLeft.position.set(-1.5, 0, 0.5);
@@ -345,7 +388,6 @@ function buildShip(){
   tipRight.rotation.y = -0.35;
   g.add(tipRight);
 
-  // 5. 双引擎结构
   const engineGeo = new THREE.CylinderGeometry(0.15, 0.2, 0.6, 8);
   engineGeo.rotateX(Math.PI / 2);
   const engineMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 1, roughness: 0.2 });
@@ -358,7 +400,6 @@ function buildShip(){
   engineR.position.set(0.4, 0, 0.8);
   g.add(engineR);
 
-  // 6. 引擎尾焰
   const flameGeo = new THREE.ConeGeometry(0.12, 0.9, 8);
   flameGeo.rotateX(-Math.PI / 2);
   const flameMat = new THREE.MeshBasicMaterial({ 
@@ -373,7 +414,6 @@ function buildShip(){
   flameR.position.set(0.4, 0, 1.35);
   g.add(flameR);
 
-  // 7. 中心引擎光晕
   const glow = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), 
     new THREE.MeshBasicMaterial({ color: 0x2fd8ff, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false })
   );
@@ -972,12 +1012,14 @@ function startGame(){
   hudEl.style.display = 'flex';
   startScreen.classList.add('hidden');
   overScreen.classList.add('hidden');
+  rewardModal.classList.add('hidden');
 }
 
 function exitToMenu(){
   state.mode = 'ready';
   resetScene();
   overScreen.classList.add('hidden');
+  rewardModal.classList.add('hidden');
   hudEl.style.display = 'none';
   startScreen.classList.remove('hidden');
 }
@@ -1008,6 +1050,47 @@ function crash(){
     hudEl.style.display = 'none';
   }, 950);
 }
+
+/* ═══════════ 赞赏功能与爱心特效 ═══════════ */
+function spawnHearts() {
+  for (let i = 0; i < 20; i++) {
+    const el = document.createElement('div');
+    el.className = 'heart-particle';
+    el.innerText = ['❤️', '💖', '✨', '🌟'][Math.floor(Math.random() * 4)];
+    
+    const startX = Math.random() * 100;
+    const delay = Math.random() * 1.5;
+    const duration = 2 + Math.random() * 2;
+    const size = 16 + Math.random() * 24;
+    
+    el.style.left = `${startX}vw`;
+    el.style.top = `-50px`;
+    el.style.fontSize = `${size}px`;
+    el.style.animation = `fall ${duration}s linear ${delay}s forwards`;
+    
+    document.body.appendChild(el);
+    
+    setTimeout(() => {
+      el.remove();
+    }, (duration + delay) * 1000);
+  }
+}
+
+function showReward() {
+  Sound.init();
+  if (state.mode !== 'playing') Sound.fadeBGM(0.1, 0.5);
+  rewardModal.classList.remove('hidden');
+  spawnHearts();
+}
+
+function closeReward() {
+  rewardModal.classList.add('hidden');
+  if (state.mode !== 'playing') Sound.fadeBGM(0.25, 0.5);
+}
+
+document.getElementById('rewardBtn').addEventListener('click', showReward);
+document.getElementById('rewardBtn2').addEventListener('click', showReward);
+document.getElementById('closeRewardBtn').addEventListener('click', closeReward);
 
 /* ═══════════ 主循环 ═══════════ */
 const clock = new THREE.Clock();
@@ -1062,7 +1145,7 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
   keys.add(k);
-  if (k === ' ' && state.mode !== 'playing') startGame();
+  if (k === ' ' && state.mode !== 'playing' && rewardModal.classList.contains('hidden')) startGame();
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
