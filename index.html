@@ -95,8 +95,8 @@
 </head>
 <body>
 
-<!-- 添加一个隐藏的音频标签，兼容性最好 -->
-<audio id="bgm" src="./bgm.mp3" loop></audio>
+<!-- 背景音乐标签，确保文件名与此处一致 -->
+<audio id="bgm" src="./bgm.mp3" loop preload="auto"></audio>
 
 <div id="game"></div>
 <div id="flash"></div>
@@ -210,13 +210,12 @@ const keyLight = new THREE.DirectionalLight(0xbfe8ff, 2.0);
 keyLight.position.set(10, 20, 5); 
 scene.add(keyLight);
 
-/* 音效引擎（已替换外部 BGM） */
+/* 音效引擎 */
 const Sound = {
-  ctx:null, master:null, bgmGain:null, sfxGain:null, delayNode:null, ready:false,
-  bgmAudio: document.getElementById('bgm'), fadeInterval: null, // 这里直接获取HTML里的音频标签
+  ctx:null, master:null, sfxGain:null, delayNode:null, ready:false,
+  bgmAudio: document.getElementById('bgm'), fadeInterval: null,
   
   init(){
-    // 1. 初始化音效引擎 (Web Audio)
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (AC) {
@@ -233,25 +232,26 @@ const Sound = {
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-
-    // 2. 初始化背景音乐设置
-    if(this.bgmAudio) {
-      this.bgmAudio.volume = 0.25;
-    }
   },
   
-  // 必须由用户的点击（click）事件直接调用此方法来启动 BGM
   playBGM() {
     if (this.bgmAudio) {
+      this.bgmAudio.volume = 0.25; // 重置正常音量
+      this.bgmAudio.currentTime = 0; // 从头开始播放
       let playPromise = this.bgmAudio.play();
       if (playPromise !== undefined) {
-        playPromise.then(() => {
-          console.log("背景音乐开始播放");
-        }).catch(e => {
-          console.log("BGM播放被拦截，需用户交互", e);
+        playPromise.catch(e => {
+          alert("音乐播放失败！请检查文件是否存在。\n" + e.message);
         });
       }
     }
+  },
+
+  stopBGM() {
+    if (this.bgmAudio) {
+      this.bgmAudio.pause(); // 彻底暂停
+    }
+    if (this.fadeInterval) clearInterval(this.fadeInterval);
   },
 
   fadeBGM(targetVol, duration){
@@ -717,10 +717,8 @@ function resetScene(){
 }
 
 function startGame(){
-  // 关键：直接在用户点击事件的同步代码中调用初始化
   Sound.init(); 
-  Sound.playBGM(); 
-  Sound.fadeBGM(0.25, 1.0); 
+  Sound.playBGM(); // 开始并重置音乐
   
   state.mode = 'playing'; state.elapsed = 0; state.speed = state.baseSpeed; state.traveled = 0; state.nextSpawn = 45; state.score = 0;
   resetScene();
@@ -729,13 +727,17 @@ function startGame(){
 }
 
 function exitToMenu(){
-  state.mode = 'ready'; resetScene(); overScreen.classList.add('hidden'); rewardModal.classList.add('hidden'); hudEl.style.display = 'none'; startScreen.classList.remove('hidden');
+  state.mode = 'ready'; resetScene(); Sound.stopBGM(); overScreen.classList.add('hidden'); rewardModal.classList.add('hidden'); hudEl.style.display = 'none'; startScreen.classList.remove('hidden');
 }
 
 function crash(){
   if (state.mode !== 'playing') return;
   state.mode = 'over'; shipPivot.visible = false;
-  Sound.fadeBGM(0.05, 1.5); createExplosion(shipPivot.position); Sound.explode();
+  
+  // 【核心修改】死亡时彻底停止音乐
+  Sound.stopBGM(); 
+  
+  createExplosion(shipPivot.position); Sound.explode();
   flashEl.style.opacity = '0.9'; setTimeout(() => { flashEl.style.opacity = '0'; }, 90);
   const finalScore = Math.floor(state.score);
   if (finalScore > state.best){ state.best = finalScore; localStorage.setItem('starrunner_best', String(state.best)); }
