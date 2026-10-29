@@ -95,6 +95,9 @@
 </head>
 <body>
 
+<!-- 添加一个隐藏的音频标签，兼容性最好 -->
+<audio id="bgm" src="./bgm.mp3" loop></audio>
+
 <div id="game"></div>
 <div id="flash"></div>
 <div id="toast" class="toast"></div>
@@ -130,7 +133,7 @@
       <button class="btn" id="startBtn">开始飞行</button>
       <button class="btn btn-reward" id="rewardBtn">赞赏 ☕</button>
     </div>
-    <div class="version">v1.8</div>
+    <div class="version">v2.0</div>
   </div>
 </div>
 
@@ -210,38 +213,44 @@ scene.add(keyLight);
 /* 音效引擎（已替换外部 BGM） */
 const Sound = {
   ctx:null, master:null, bgmGain:null, sfxGain:null, delayNode:null, ready:false,
-  bgmAudio: null, fadeInterval: null,
+  bgmAudio: document.getElementById('bgm'), fadeInterval: null, // 这里直接获取HTML里的音频标签
   
   init(){
-    if (this.ctx){ if(this.ctx.state==='suspended') this.ctx.resume(); return; }
-    
-    // 初始化背景音乐
-    if (!this.bgmAudio) {
-      this.bgmAudio = new Audio('./bgm.mp3');
-      this.bgmAudio.loop = true;
+    // 1. 初始化音效引擎 (Web Audio)
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        this.ctx = new AC();
+        this.master = this.ctx.createGain(); this.master.gain.value = 0.6;
+        this.master.connect(this.ctx.destination);
+        this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = 0.8;
+        this.sfxGain.connect(this.master);
+        this.delayNode = this.ctx.createDelay(); this.delayNode.delayTime.value = 0.45;
+        const delayFeedback = this.ctx.createGain(); delayFeedback.gain.value = 0.35;
+        this.delayNode.connect(delayFeedback); delayFeedback.connect(this.delayNode);
+        this.delayNode.connect(this.master);
+        this.ready = true;
+      }
+    }
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+
+    // 2. 初始化背景音乐设置
+    if(this.bgmAudio) {
       this.bgmAudio.volume = 0.25;
     }
-
-    // 保留原有音效引擎
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    this.ctx = new AC();
-    this.master = this.ctx.createGain(); this.master.gain.value = 0.6;
-    this.master.connect(this.ctx.destination);
-    this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = 0.8;
-    this.sfxGain.connect(this.master);
-    this.delayNode = this.ctx.createDelay(); this.delayNode.delayTime.value = 0.45;
-    const delayFeedback = this.ctx.createGain(); delayFeedback.gain.value = 0.35;
-    this.delayNode.connect(delayFeedback); delayFeedback.connect(this.delayNode);
-    this.delayNode.connect(this.master);
-    
-    this.ready = true;
   },
   
-  unlock() { 
-    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); 
-    if (this.bgmAudio && this.bgmAudio.paused) {
-      this.bgmAudio.play().catch(e => console.log('等待用户交互播放BGM', e));
+  // 必须由用户的点击（click）事件直接调用此方法来启动 BGM
+  playBGM() {
+    if (this.bgmAudio) {
+      let playPromise = this.bgmAudio.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          console.log("背景音乐开始播放");
+        }).catch(e => {
+          console.log("BGM播放被拦截，需用户交互", e);
+        });
+      }
     }
   },
 
@@ -303,10 +312,6 @@ const Sound = {
     o.connect(g); g.connect(this.sfxGain); o.start(t); o.stop(t+0.6);
   }
 };
-
-const unlockAudioOnce = () => { Sound.unlock(); document.removeEventListener('touchstart', unlockAudioOnce); document.removeEventListener('mousedown', unlockAudioOnce); };
-document.addEventListener('touchstart', unlockAudioOnce, { passive: true });
-document.addEventListener('mousedown', unlockAudioOnce, { passive: true });
 
 /* 赛道数学 */
 function getCurveOffset(z) {
@@ -712,7 +717,11 @@ function resetScene(){
 }
 
 function startGame(){
-  Sound.init(); Sound.unlock(); Sound.fadeBGM(0.25, 1.0); 
+  // 关键：直接在用户点击事件的同步代码中调用初始化
+  Sound.init(); 
+  Sound.playBGM(); 
+  Sound.fadeBGM(0.25, 1.0); 
+  
   state.mode = 'playing'; state.elapsed = 0; state.speed = state.baseSpeed; state.traveled = 0; state.nextSpawn = 45; state.score = 0;
   resetScene();
   scoreEl.textContent = '0'; bestEl.textContent = state.best;
@@ -746,7 +755,7 @@ function spawnHearts() {
     document.body.appendChild(el); setTimeout(() => { el.remove(); }, (duration + delay) * 1000);
   }
 }
-function showReward() { Sound.init(); Sound.unlock(); if (state.mode !== 'playing') Sound.fadeBGM(0.1, 0.5); rewardModal.classList.remove('hidden'); spawnHearts(); }
+function showReward() { Sound.init(); if (state.mode !== 'playing') Sound.fadeBGM(0.1, 0.5); rewardModal.classList.remove('hidden'); spawnHearts(); }
 function closeReward() { rewardModal.classList.add('hidden'); if (state.mode !== 'playing') Sound.fadeBGM(0.25, 0.5); }
 
 document.getElementById('rewardBtn').addEventListener('click', showReward);
