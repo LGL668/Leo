@@ -53,6 +53,8 @@
   .btn-secondary{background:transparent;border:1px solid rgba(62,232,255,.35);color:#8fe3ff;box-shadow:none;}
   .btn-secondary:hover{background:rgba(62,232,255,.1);box-shadow:0 0 25px rgba(62,232,255,.2);}
 
+  .version { font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,0.3); margin-top: 24px; font-family: monospace; }
+
   .bigscore{font-size:68px;font-weight:900;color:#fff;line-height:1;margin:16px 0 8px;
             text-shadow:0 0 44px rgba(62,232,255,.7)}
   .best{font-size:13px;letter-spacing:3px;opacity:.55;margin-bottom:30px}
@@ -87,6 +89,7 @@
       感受赛道弯曲，跟随流星轨迹
     </div>
     <button class="btn" id="startBtn">开始飞行</button>
+    <div class="version">v1.0</div>
   </div>
 </div>
 
@@ -166,7 +169,6 @@ const Sound = {
     this.sfxGain.gain.value = 0.8;
     this.sfxGain.connect(this.master);
 
-    // 空间延迟效果器
     this.delayNode = this.ctx.createDelay();
     this.delayNode.delayTime.value = 0.45;
     const delayFeedback = this.ctx.createGain();
@@ -200,7 +202,6 @@ const Sound = {
     g.connect(p);
     p.connect(this.bgmGain);
     
-    // 部分音符加入延迟
     if (Math.random() > 0.5) p.connect(this.delayNode);
 
     o.start(time);
@@ -210,29 +211,26 @@ const Sound = {
   startBGM(){
     if (!this.ready || this.bgmTimer) return;
     
-    // 和弦进行 (A minor 氛围)
     const chords = [
-      [110.00, 130.81, 164.81, 246.94], // Am9
-      [87.31, 130.81, 174.61, 220.00],  // Fmaj7
-      [130.81, 164.81, 196.00, 246.94], // Cmaj7
-      [98.00, 146.83, 196.00, 246.94]   // G6
+      [110.00, 130.81, 164.81, 246.94], 
+      [87.31, 130.81, 174.61, 220.00],  
+      [130.81, 164.81, 196.00, 246.94], 
+      [98.00, 146.83, 196.00, 246.94]   
     ];
 
-    const arpPattern = [0, 2, 1, 3, 2, 1, 0, 2]; // 琶音序列
+    const arpPattern = [0, 2, 1, 3, 2, 1, 0, 2]; 
     let beat = 0;
 
     const scheduleNext = () => {
       const t = this.ctx.currentTime;
       const chord = chords[this.currentChord];
       
-      // 铺底 Pad 长音 (每 4 拍)
       if (beat % 8 === 0) {
         chord.forEach((freq, i) => {
           this.playTone(freq / 2, 'sine', t, 4.0, 0.1, (i%2===0? -0.5 : 0.5));
         });
       }
 
-      // 闪烁琶音
       const noteFreq = chord[arpPattern[this.noteIndex % arpPattern.length]];
       this.playTone(noteFreq, 'triangle', t, 0.6, 0.08, Math.sin(beat * 0.5));
 
@@ -240,7 +238,7 @@ const Sound = {
       if (beat % 8 === 7) this.currentChord = (this.currentChord + 1) % chords.length;
       beat++;
 
-      this.bgmTimer = setTimeout(scheduleNext, 300); // 约 200 BPM
+      this.bgmTimer = setTimeout(scheduleNext, 300); 
     };
     
     scheduleNext();
@@ -296,58 +294,95 @@ function getTangent(z) {
     return new THREE.Vector3(dx, dy, -1).normalize();
 }
 
-/* ═══════════ 飞船 ═══════════ */
+/* ═══════════ 全新科幻战机 ═══════════ */
 function buildShip(){
   const g = new THREE.Group();
-  const bodyGeo = new THREE.ConeGeometry(0.46, 1.9, 4, 1);
-  bodyGeo.rotateX(-Math.PI/2);
-  bodyGeo.rotateZ(Math.PI/4);
-  const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({
-    color:0x9fe9ff, emissive:0x1b7fa8, emissiveIntensity:0.9,
-    metalness:1, roughness:0.18, flatShading:true
-  }));
+  
+  // 材质定义
+  const bodyMat = new THREE.MeshStandardMaterial({ 
+    color: 0x2a3b4c, metalness: 0.9, roughness: 0.25, flatShading: true 
+  });
+  const accentMat = new THREE.MeshStandardMaterial({ 
+    color: 0x00e5ff, emissive: 0x00e5ff, emissiveIntensity: 1.5, metalness: 1, roughness: 0.1 
+  });
+
+  // 1. 主机身（扁平六边形柱体，压扁拉长）
+  const bodyGeo = new THREE.CylinderGeometry(0.35, 0.08, 2.4, 6, 1);
+  bodyGeo.rotateX(Math.PI / 2);
+  bodyGeo.scale(1, 0.45, 1); 
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.z = -0.2;
   g.add(body);
 
-  const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10),
-    new THREE.MeshStandardMaterial({
-      color:0x06202e, emissive:0x00e5ff, emissiveIntensity:1.8,
-      metalness:1, roughness:0.05
-    }));
-  cockpit.position.set(0, 0.14, -0.18);
-  cockpit.scale.set(1, 0.7, 1.6);
+  // 2. 座舱（发光流线型）
+  const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), accentMat);
+  cockpit.position.set(0, 0.1, -0.3);
+  cockpit.scale.set(1, 0.6, 2.0);
   g.add(cockpit);
 
-  const wingMat = new THREE.MeshStandardMaterial({
-    color:0x2f8fc4, emissive:0x0a3a55, metalness:1, roughness:0.3, flatShading:true
+  // 3. 后掠机翼（左右各一）
+  const wingGeo = new THREE.BoxGeometry(1.8, 0.06, 0.6);
+  
+  const wingLeft = new THREE.Mesh(wingGeo, bodyMat);
+  wingLeft.position.set(-0.7, 0, 0.4);
+  wingLeft.rotation.y = 0.35; // 后掠角
+  g.add(wingLeft);
+
+  const wingRight = new THREE.Mesh(wingGeo, bodyMat);
+  wingRight.position.set(0.7, 0, 0.4);
+  wingRight.rotation.y = -0.35;
+  g.add(wingRight);
+
+  // 4. 发光翼尖
+  const tipGeo = new THREE.BoxGeometry(0.08, 0.12, 0.8);
+  const tipLeft = new THREE.Mesh(tipGeo, accentMat);
+  tipLeft.position.set(-1.5, 0, 0.5);
+  tipLeft.rotation.y = 0.35;
+  g.add(tipLeft);
+
+  const tipRight = new THREE.Mesh(tipGeo, accentMat);
+  tipRight.position.set(1.5, 0, 0.5);
+  tipRight.rotation.y = -0.35;
+  g.add(tipRight);
+
+  // 5. 双引擎结构
+  const engineGeo = new THREE.CylinderGeometry(0.15, 0.2, 0.6, 8);
+  engineGeo.rotateX(Math.PI / 2);
+  const engineMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 1, roughness: 0.2 });
+  
+  const engineL = new THREE.Mesh(engineGeo, engineMat);
+  engineL.position.set(-0.4, 0, 0.8);
+  g.add(engineL);
+  
+  const engineR = new THREE.Mesh(engineGeo, engineMat);
+  engineR.position.set(0.4, 0, 0.8);
+  g.add(engineR);
+
+  // 6. 引擎尾焰
+  const flameGeo = new THREE.ConeGeometry(0.12, 0.9, 8);
+  flameGeo.rotateX(-Math.PI / 2);
+  const flameMat = new THREE.MeshBasicMaterial({ 
+    color: 0x3ee8ff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending 
   });
-  const wings = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.09, 0.62), wingMat);
-  wings.position.set(0, -0.06, 0.44);
-  g.add(wings);
+  
+  const flameL = new THREE.Mesh(flameGeo, flameMat);
+  flameL.position.set(-0.4, 0, 1.35);
+  g.add(flameL);
+  
+  const flameR = new THREE.Mesh(flameGeo, flameMat);
+  flameR.position.set(0.4, 0, 1.35);
+  g.add(flameR);
 
-  const tipGeo = new THREE.BoxGeometry(0.13, 0.32, 0.5);
-  for (const s of [-1, 1]){
-    const t = new THREE.Mesh(tipGeo, wingMat);
-    t.position.set(s * 0.87, 0.09, 0.44);
-    g.add(t);
-  }
-
-  const engine = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10),
-    new THREE.MeshBasicMaterial({color:0x7dfbff}));
-  engine.position.set(0, 0, 0.92);
-  engine.scale.set(1, 1, 1.7);
-  g.add(engine);
-
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12),
-    new THREE.MeshBasicMaterial({
-      color:0x2fd8ff, transparent:true, opacity:0.22,
-      depthWrite:false, blending:THREE.AdditiveBlending
-    }));
-  glow.position.set(0, 0, 1.15);
-  glow.scale.set(1, 1, 2.4);
+  // 7. 中心引擎光晕
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), 
+    new THREE.MeshBasicMaterial({ color: 0x2fd8ff, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  glow.position.set(0, 0, 1.0);
+  glow.scale.set(1.5, 1, 2);
   g.add(glow);
 
-  const lamp = new THREE.PointLight(0x33e8ff, 34, 26, 2);
-  lamp.position.set(0, 0, 1.6);
+  const lamp = new THREE.PointLight(0x33e8ff, 30, 20, 2);
+  lamp.position.set(0, 0, 1.5);
   g.add(lamp);
 
   return g;
@@ -921,7 +956,7 @@ function resetScene(){
 
 function startGame(){
   Sound.init();
-  Sound.fadeBGM(0.25, 1.0); // 恢复音量
+  Sound.fadeBGM(0.25, 1.0); 
 
   state.mode = 'playing';
   state.elapsed = 0;
@@ -952,7 +987,6 @@ function crash(){
   state.mode = 'over';
   shipPivot.visible = false;
   
-  // 音乐淡出
   Sound.fadeBGM(0.05, 1.5);
 
   createExplosion(shipPivot.position);
