@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>星际穿梭 · 巨行星低空</title>
 <style>
-  :root{ --cyan:#3ee8ff; --pink:#ff3d8b; --mint:#5cffc0; }
+  :root{ --cyan:#3ee8ff; --pink:#ff3d8b; --mint:#5cffc0; --purple:#b066ff; --red:#ff4d4d; --blue:#4da6ff; }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#02030a;
     font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
@@ -16,11 +16,19 @@
   .hud{position:fixed;inset:0;pointer-events:none;padding:22px 26px;
        display:flex;justify-content:space-between;align-items:flex-start;
        font-variant-numeric:tabular-nums; z-index: 5;}
+  .hud-left { display: flex; flex-direction: column; gap: 8px; }
   .hud .label{font-size:11px;letter-spacing:4px;opacity:.45;margin-bottom:2px}
   .hud .score{font-size:36px;font-weight:800;letter-spacing:2px;color:var(--cyan);
               text-shadow:0 0 22px rgba(62,232,255,.75)}
   .hud .right{text-align:right}
   .hud .right .val{font-size:18px;font-weight:700;color:#8fe3ff;opacity:.85}
+
+  /* 道具状态栏 */
+  .powerup-hud { display: flex; gap: 15px; margin-top: 10px; opacity: 0; transition: opacity 0.3s; }
+  .powerup-hud.active { opacity: 1; }
+  .pu-icon { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: bold; padding: 4px 10px; border-radius: 8px; backdrop-filter: blur(4px); }
+  .pu-icon.shield { color: var(--blue); border: 1px solid rgba(77,166,255,.3); background: rgba(77,166,255,.1); text-shadow: 0 0 10px var(--blue); }
+  .pu-icon.weapon { color: var(--red); border: 1px solid rgba(255,77,77,.3); background: rgba(255,77,77,.1); text-shadow: 0 0 10px var(--red); }
 
   .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
     background:radial-gradient(circle at 50% 45%,rgba(10,30,60,.55),rgba(2,3,10,.93));
@@ -50,7 +58,6 @@
   .btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 52px rgba(62,232,255,.85)}
   .btn:active{transform:scale(.96)}
 
-  /* 修复 Emoji 拦截点击的问题 */
   .btn * { pointer-events: none; }
 
   .btn-secondary{background:transparent;border:1px solid rgba(62,232,255,.35);color:#8fe3ff;box-shadow:none;}
@@ -67,7 +74,10 @@
   #flash{position:fixed;inset:0;background:#ff2d6f;opacity:0;pointer-events:none;
          transition:opacity .12s ease; z-index: 99;}
 
-  /* 赞赏弹窗特有样式 */
+  /* 弹出提示文本 */
+  .toast { position: fixed; left: 50%; top: 30%; transform: translate(-50%, -50%); font-size: 28px; font-weight: 900; letter-spacing: 5px; pointer-events: none; opacity: 0; z-index: 50; text-shadow: 0 0 30px currentColor; }
+  @keyframes toastAnim { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.8); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -70%) scale(0.9); } }
+
   .qr-placeholder {
     width: 110px; height: 110px; margin: 15px auto;
     background: #fff; border-radius: 10px;
@@ -76,33 +86,29 @@
     cursor: pointer;
     transition: transform 0.2s;
   }
-  .qr-placeholder:hover {
-    transform: scale(1.05);
-  }
-  .qr-placeholder img { 
-    width: 100%; height: 100%; object-fit: cover; 
-    position: absolute; inset: 0; z-index: 2;
-  }
+  .qr-placeholder:hover { transform: scale(1.05); }
+  .qr-placeholder img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; z-index: 2; }
 
-  .heart-particle {
-    position: fixed; pointer-events: none; z-index: 100;
-    font-size: 24px; animation: fall linear forwards;
-  }
-  @keyframes fall {
-    0% { transform: translateY(-50px) rotate(0deg) scale(1); opacity: 1; }
-    100% { transform: translateY(100vh) rotate(360deg) scale(0.5); opacity: 0; }
-  }
+  .heart-particle { position: fixed; pointer-events: none; z-index: 100; font-size: 24px; animation: fall linear forwards; }
+  @keyframes fall { 0% { transform: translateY(-50px) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translateY(100vh) rotate(360deg) scale(0.5); opacity: 0; } }
 </style>
 </head>
 <body>
 
 <div id="game"></div>
 <div id="flash"></div>
+<div id="toast" class="toast"></div>
 
 <div class="hud" id="hud" style="display:none">
-  <div>
-    <div class="label">SCORE</div>
-    <div class="score" id="score">0</div>
+  <div class="hud-left">
+    <div>
+      <div class="label">SCORE</div>
+      <div class="score" id="score">0</div>
+    </div>
+    <div class="powerup-hud" id="powerupHud">
+      <div class="pu-icon shield" id="puShield" style="display:none;">🛡️ <span id="shieldTime">0</span>s</div>
+      <div class="pu-icon weapon" id="puWeapon" style="display:none;">🔫 <span id="weaponTime">0</span>s</div>
+    </div>
   </div>
   <div class="right">
     <div class="label">BEST</div>
@@ -110,7 +116,6 @@
   </div>
 </div>
 
-<!-- 开始界面 -->
 <div class="overlay" id="startScreen">
   <div class="card">
     <div class="title">星际穿梭</div>
@@ -118,18 +123,17 @@
     <div class="tips">
       移动<b>鼠标</b> 或 <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>
       <span class="key">↑↓←→</span> 操控飞船<br>
-      躲避<b style="color:#ff3d8b">红色太空垃圾</b>，收集<b style="color:#5cffc0">绿色能量球</b><br>
+      躲避<b style="color:#ff3d8b">太空垃圾</b>，收集<b style="color:#5cffc0">能量球</b>与<b style="color:#b066ff">强化道具</b><br>
       感受赛道弯曲，跟随流星轨迹
     </div>
     <div class="btn-group">
       <button class="btn" id="startBtn">开始飞行</button>
       <button class="btn btn-reward" id="rewardBtn">赞赏 ☕</button>
     </div>
-    <div class="version">v1.5</div>
+    <div class="version">v1.8</div>
   </div>
 </div>
 
-<!-- 结束界面 -->
 <div class="overlay hidden" id="overScreen">
   <div class="card">
     <div class="subtitle">飞行结束</div>
@@ -143,18 +147,14 @@
   </div>
 </div>
 
-<!-- 赞赏弹窗 -->
 <div class="overlay hidden" id="rewardModal" style="z-index: 20;">
   <div class="card" style="background: rgba(10, 20, 35, 0.8); border: 1px solid rgba(62,232,255,0.2); border-radius: 20px;">
     <div class="subtitle" style="color: var(--pink);">THANK YOU</div>
     <div style="font-size: 20px; font-weight: bold; margin: 15px 0 5px;">感谢您的支持！</div>
     <div style="font-size: 13px; opacity: 0.6; margin-bottom: 10px;">本游戏完全免费，您的支持是我更新的动力</div>
-    
-    <!-- 二维码：直接读取同目录下的 qrcode.png -->
     <div class="qr-placeholder" id="qrContainer">
       <img src="./qrcode.png" alt="赞赏码">
     </div>
-    
     <div style="font-size: 12px; opacity: 0.4; margin-bottom: 20px;">点击图片或背景关闭</div>
     <button class="btn btn-secondary" id="closeRewardBtn" style="padding: 10px 30px; font-size: 13px;">关闭</button>
   </div>
@@ -167,12 +167,11 @@
 <script type="module">
 import * as THREE from 'three';
 
-/* ═══════════ 工具 ═══════════ */
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 const damp  = (k,dt)=>1-Math.exp(-k*dt);
 const rnd   = (a,b)=>a+Math.random()*(b-a);
 
-/* ═══════════ DOM ═══════════ */
+/* DOM */
 const container   = document.getElementById('game');
 const scoreEl     = document.getElementById('score');
 const bestEl      = document.getElementById('bestHud');
@@ -183,8 +182,14 @@ const finalScoreEl= document.getElementById('finalScore');
 const finalBestEl = document.getElementById('finalBest');
 const flashEl     = document.getElementById('flash');
 const rewardModal = document.getElementById('rewardModal');
+const toastEl     = document.getElementById('toast');
+const powerupHud  = document.getElementById('powerupHud');
+const puShield    = document.getElementById('puShield');
+const puWeapon    = document.getElementById('puWeapon');
+const shieldTimeEl= document.getElementById('shieldTime');
+const weaponTimeEl= document.getElementById('weaponTime');
 
-/* ═══════════ 渲染器 / 场景 ═══════════ */
+/* 渲染场景 */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x03050a);
 scene.fog = new THREE.FogExp2(0x03050a, 0.002);
@@ -197,118 +202,71 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 container.appendChild(renderer.domElement);
 
-/* ═══════════ 灯光 ═══════════ */
 scene.add(new THREE.AmbientLight(0x223344, 1.5)); 
 const keyLight = new THREE.DirectionalLight(0xbfe8ff, 2.0);
 keyLight.position.set(10, 20, 5); 
 scene.add(keyLight);
 
-/* ═══════════ 音效与音乐引擎（修复手机端问题） ═══════════ */
+/* 音效引擎 */
 const Sound = {
   ctx:null, master:null, bgmGain:null, sfxGain:null, delayNode:null, ready:false,
   bgmTimer:null, currentChord:0, noteIndex:0,
   
   init(){
-    if (this.ctx){ 
-      if(this.ctx.state==='suspended') this.ctx.resume(); 
-      return; 
-    }
+    if (this.ctx){ if(this.ctx.state==='suspended') this.ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     this.ctx = new AC();
-    
-    this.master = this.ctx.createGain(); 
-    this.master.gain.value = 0.6;
+    this.master = this.ctx.createGain(); this.master.gain.value = 0.6;
     this.master.connect(this.ctx.destination);
-
-    this.sfxGain = this.ctx.createGain();
-    this.sfxGain.gain.value = 0.8;
+    this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = 0.8;
     this.sfxGain.connect(this.master);
-
-    this.delayNode = this.ctx.createDelay();
-    this.delayNode.delayTime.value = 0.45;
-    const delayFeedback = this.ctx.createGain();
-    delayFeedback.gain.value = 0.35;
-    this.delayNode.connect(delayFeedback);
-    delayFeedback.connect(this.delayNode);
+    this.delayNode = this.ctx.createDelay(); this.delayNode.delayTime.value = 0.45;
+    const delayFeedback = this.ctx.createGain(); delayFeedback.gain.value = 0.35;
+    this.delayNode.connect(delayFeedback); delayFeedback.connect(this.delayNode);
     this.delayNode.connect(this.master);
-
-    this.bgmGain = this.ctx.createGain();
-    this.bgmGain.gain.value = 0.25;
+    this.bgmGain = this.ctx.createGain(); this.bgmGain.gain.value = 0.25;
     this.bgmGain.connect(this.master);
-
     this.ready = true;
     this.startBGM();
   },
-
-  // 强制唤醒音频（应对手机浏览器策略）
-  unlock() {
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
-  },
-
+  unlock() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
   playTone(freq, type, time, dur, vol, pan = 0) {
     if(!this.ctx) return;
-    const o = this.ctx.createOscillator();
-    o.type = type;
+    const o = this.ctx.createOscillator(); o.type = type;
     o.frequency.setValueAtTime(freq, time);
-    
     const g = this.ctx.createGain();
-    g.gain.setValueAtTime(0, time);
-    g.gain.linearRampToValueAtTime(vol, time + 0.05);
+    g.gain.setValueAtTime(0, time); g.gain.linearRampToValueAtTime(vol, time + 0.05);
     g.gain.exponentialRampToValueAtTime(0.001, time + dur);
-
-    const p = this.ctx.createStereoPanner();
-    p.pan.setValueAtTime(pan, time);
-
-    o.connect(g);
-    g.connect(p);
-    p.connect(this.bgmGain);
-    
+    const p = this.ctx.createStereoPanner(); p.pan.setValueAtTime(pan, time);
+    o.connect(g); g.connect(p); p.connect(this.bgmGain);
     if (Math.random() > 0.5) p.connect(this.delayNode);
-
-    o.start(time);
-    o.stop(time + dur + 0.1);
+    o.start(time); o.stop(time + dur + 0.1);
   },
-
   startBGM(){
     if (!this.ready || this.bgmTimer) return;
-    
     const chords = [
-      [110.00, 130.81, 164.81, 246.94], 
-      [87.31, 130.81, 174.61, 220.00],  
-      [130.81, 164.81, 196.00, 246.94], 
-      [98.00, 146.83, 196.00, 246.94]   
+      [110.00, 130.81, 164.81, 246.94], [87.31, 130.81, 174.61, 220.00],  
+      [130.81, 164.81, 196.00, 246.94], [98.00, 146.83, 196.00, 246.94]   
     ];
-
     const arpPattern = [0, 2, 1, 3, 2, 1, 0, 2]; 
     let beat = 0;
-
     const scheduleNext = () => {
       if(!this.ctx) return;
       const t = this.ctx.currentTime;
       const chord = chords[this.currentChord];
-      
       if (beat % 8 === 0) {
-        chord.forEach((freq, i) => {
-          this.playTone(freq / 2, 'sine', t, 4.0, 0.1, (i%2===0? -0.5 : 0.5));
-        });
+        chord.forEach((freq, i) => { this.playTone(freq / 2, 'sine', t, 4.0, 0.1, (i%2===0? -0.5 : 0.5)); });
       }
-
       const noteFreq = chord[arpPattern[this.noteIndex % arpPattern.length]];
       this.playTone(noteFreq, 'triangle', t, 0.6, 0.08, Math.sin(beat * 0.5));
-
       this.noteIndex++;
       if (beat % 8 === 7) this.currentChord = (this.currentChord + 1) % chords.length;
       beat++;
-
       this.bgmTimer = setTimeout(scheduleNext, 300); 
     };
-    
     scheduleNext();
   },
-
   fadeBGM(targetVol, duration){
     if (!this.ready) return;
     const t = this.ctx.currentTime;
@@ -316,7 +274,6 @@ const Sound = {
     this.bgmGain.gain.setValueAtTime(this.bgmGain.gain.value, t);
     this.bgmGain.gain.linearRampToValueAtTime(targetVol, t + duration);
   },
-
   pickup(){
     if (!this.ready) return;
     const t = this.ctx.currentTime;
@@ -326,7 +283,26 @@ const Sound = {
     g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.2);
     o.connect(g); g.connect(this.sfxGain); o.start(t); o.stop(t+0.2);
   },
-
+  powerup(type){
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(); o.type = 'square';
+    if(type==='shield'){ o.frequency.setValueAtTime(440, t); o.frequency.exponentialRampToValueAtTime(880, t+0.2); }
+    else if(type==='weapon'){ o.frequency.setValueAtTime(330, t); o.frequency.exponentialRampToValueAtTime(660, t+0.2); }
+    else { o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(110, t+0.5); }
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.4);
+    o.connect(g); g.connect(this.sfxGain); o.start(t); o.stop(t+0.5);
+  },
+  shoot(){
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(1200, t); o.frequency.exponentialRampToValueAtTime(200, t+0.1);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.1);
+    o.connect(g); g.connect(this.sfxGain); o.start(t); o.stop(t+0.1);
+  },
   explode(){
     if (!this.ready) return;
     const t = this.ctx.currentTime;
@@ -338,29 +314,17 @@ const Sound = {
   }
 };
 
-// 针对移动端，全局监听首次触摸/点击来解锁音频
-const unlockAudioOnce = () => {
-  Sound.unlock();
-  document.removeEventListener('touchstart', unlockAudioOnce);
-  document.removeEventListener('mousedown', unlockAudioOnce);
-};
+const unlockAudioOnce = () => { Sound.unlock(); document.removeEventListener('touchstart', unlockAudioOnce); document.removeEventListener('mousedown', unlockAudioOnce); };
 document.addEventListener('touchstart', unlockAudioOnce, { passive: true });
 document.addEventListener('mousedown', unlockAudioOnce, { passive: true });
 
-/* ═══════════ 赛道弯曲数学计算 ═══════════ */
+/* 赛道数学 */
 function getCurveOffset(z) {
     const totalZ = state.traveled - z; 
-    const A1 = 80, F1 = 0.0012;
-    const A2 = 40, F2 = 0.0035;
-    const x = Math.sin(totalZ * F1) * A1 + Math.sin(totalZ * F2) * A2;
-    
-    const B1 = 60, G1 = 0.001;
-    const B2 = 25, G2 = 0.0025;
-    const y = Math.cos(totalZ * G1) * B1 + Math.cos(totalZ * G2) * B2;
-    
+    const x = Math.sin(totalZ * 0.0012) * 80 + Math.sin(totalZ * 0.0035) * 40;
+    const y = Math.cos(totalZ * 0.001) * 60 + Math.cos(totalZ * 0.0025) * 25;
     return new THREE.Vector3(x, y, 0);
 }
-
 function getTangent(z) {
     const totalZ = state.traveled - z;
     const dx = Math.cos(totalZ * 0.0012) * 80 * 0.0012 + Math.cos(totalZ * 0.0035) * 40 * 0.0035;
@@ -368,443 +332,163 @@ function getTangent(z) {
     return new THREE.Vector3(dx, dy, -1).normalize();
 }
 
-/* ═══════════ 全新科幻战机 ═══════════ */
+/* 战机模型 */
 function buildShip(){
   const g = new THREE.Group();
-  
-  const bodyMat = new THREE.MeshStandardMaterial({ 
-    color: 0xffffff, emissive: 0x3ee8ff, emissiveIntensity: 1.5, metalness: 1, roughness: 0.1, flatShading: true 
-  });
-  const accentMat = new THREE.MeshStandardMaterial({ 
-    color: 0x00e5ff, emissive: 0x00e5ff, emissiveIntensity: 3.0, metalness: 1, roughness: 0.05 
-  });
-
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x3ee8ff, emissiveIntensity: 1.5, metalness: 1, roughness: 0.1, flatShading: true });
+  const accentMat = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x00e5ff, emissiveIntensity: 3.0, metalness: 1, roughness: 0.05 });
   const bodyGeo = new THREE.CylinderGeometry(0.5, 0.12, 3.2, 6, 1);
-  bodyGeo.rotateX(Math.PI / 2);
-  bodyGeo.scale(1, 0.45, 1); 
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.position.z = -0.2;
-  g.add(body);
-
+  bodyGeo.rotateX(Math.PI / 2); bodyGeo.scale(1, 0.45, 1); 
+  const body = new THREE.Mesh(bodyGeo, bodyMat); body.position.z = -0.2; g.add(body);
   const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 16), accentMat);
-  cockpit.position.set(0, 0.15, -0.4);
-  cockpit.scale.set(1, 0.6, 2.2);
-  g.add(cockpit);
-
+  cockpit.position.set(0, 0.15, -0.4); cockpit.scale.set(1, 0.6, 2.2); g.add(cockpit);
   const wingGeo = new THREE.BoxGeometry(2.6, 0.1, 0.8);
-  
-  const wingLeft = new THREE.Mesh(wingGeo, bodyMat);
-  wingLeft.position.set(-1.0, 0, 0.5);
-  wingLeft.rotation.y = 0.35; 
-  g.add(wingLeft);
-
-  const wingRight = new THREE.Mesh(wingGeo, bodyMat);
-  wingRight.position.set(1.0, 0, 0.5);
-  wingRight.rotation.y = -0.35;
-  g.add(wingRight);
-
+  const wingLeft = new THREE.Mesh(wingGeo, bodyMat); wingLeft.position.set(-1.0, 0, 0.5); wingLeft.rotation.y = 0.35; g.add(wingLeft);
+  const wingRight = new THREE.Mesh(wingGeo, bodyMat); wingRight.position.set(1.0, 0, 0.5); wingRight.rotation.y = -0.35; g.add(wingRight);
   const tipGeo = new THREE.BoxGeometry(0.15, 0.2, 1.1);
-  const tipLeft = new THREE.Mesh(tipGeo, accentMat);
-  tipLeft.position.set(-2.2, 0, 0.6);
-  tipLeft.rotation.y = 0.35;
-  g.add(tipLeft);
-
-  const tipRight = new THREE.Mesh(tipGeo, accentMat);
-  tipRight.position.set(2.2, 0, 0.6);
-  tipRight.rotation.y = -0.35;
-  g.add(tipRight);
-
-  const engineGeo = new THREE.CylinderGeometry(0.25, 0.3, 0.8, 8);
-  engineGeo.rotateX(Math.PI / 2);
+  const tipLeft = new THREE.Mesh(tipGeo, accentMat); tipLeft.position.set(-2.2, 0, 0.6); tipLeft.rotation.y = 0.35; g.add(tipLeft);
+  const tipRight = new THREE.Mesh(tipGeo, accentMat); tipRight.position.set(2.2, 0, 0.6); tipRight.rotation.y = -0.35; g.add(tipRight);
+  const engineGeo = new THREE.CylinderGeometry(0.25, 0.3, 0.8, 8); engineGeo.rotateX(Math.PI / 2);
   const engineMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 1, roughness: 0.2 });
-  
-  const engineL = new THREE.Mesh(engineGeo, engineMat);
-  engineL.position.set(-0.6, 0, 1.0);
-  g.add(engineL);
-  
-  const engineR = new THREE.Mesh(engineGeo, engineMat);
-  engineR.position.set(0.6, 0, 1.0);
-  g.add(engineR);
-
-  const flameGeo = new THREE.ConeGeometry(0.22, 1.8, 8);
-  flameGeo.rotateX(-Math.PI / 2);
-  const flameMat = new THREE.MeshBasicMaterial({ 
-    color: 0x7dfbff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending 
-  });
-  
-  const flameL = new THREE.Mesh(flameGeo, flameMat);
-  flameL.position.set(-0.6, 0, 1.8);
-  g.add(flameL);
-  
-  const flameR = new THREE.Mesh(flameGeo, flameMat);
-  flameR.position.set(0.6, 0, 1.8);
-  g.add(flameR);
-
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 12), 
-    new THREE.MeshBasicMaterial({ color: 0x2fd8ff, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false })
-  );
-  glow.position.set(0, 0, 1.2);
-  glow.scale.set(1.5, 1, 2.5);
-  g.add(glow);
-
-  const lamp = new THREE.PointLight(0x33e8ff, 100, 40, 2);
-  lamp.position.set(0, 0, 2.0);
-  g.add(lamp);
-
+  const engineL = new THREE.Mesh(engineGeo, engineMat); engineL.position.set(-0.6, 0, 1.0); g.add(engineL);
+  const engineR = new THREE.Mesh(engineGeo, engineMat); engineR.position.set(0.6, 0, 1.0); g.add(engineR);
+  const flameGeo = new THREE.ConeGeometry(0.22, 1.8, 8); flameGeo.rotateX(-Math.PI / 2);
+  const flameMat = new THREE.MeshBasicMaterial({ color: 0x7dfbff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
+  const flameL = new THREE.Mesh(flameGeo, flameMat); flameL.position.set(-0.6, 0, 1.8); g.add(flameL);
+  const flameR = new THREE.Mesh(flameGeo, flameMat); flameR.position.set(0.6, 0, 1.8); g.add(flameR);
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 12), new THREE.MeshBasicMaterial({ color: 0x2fd8ff, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
+  glow.position.set(0, 0, 1.2); glow.scale.set(1.5, 1, 2.5); g.add(glow);
+  const lamp = new THREE.PointLight(0x33e8ff, 100, 40, 2); lamp.position.set(0, 0, 2.0); g.add(lamp);
   return g;
 }
+const shipPivot = new THREE.Group(); scene.add(shipPivot);
+const ship = buildShip(); shipPivot.add(ship);
 
-const shipPivot = new THREE.Group();
-scene.add(shipPivot);
+// 护盾视觉特效
+const shieldMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(2.5, 24, 24),
+  new THREE.MeshBasicMaterial({ color: 0x4da6ff, transparent: true, opacity: 0.15, wireframe: true, blending: THREE.AdditiveBlending, depthWrite: false })
+);
+shieldMesh.visible = false;
+ship.add(shieldMesh);
 
-const ship = buildShip();
-shipPivot.add(ship);
-
-/* ═══════════════════════════════════════════
-   超巨大行星背景
-   ═══════════════════════════════════════════ */
-const planetUniforms = {
-  time: { value: 0 },
-  lightDir: { value: new THREE.Vector3(0.4, 0.8, 0.2).normalize() }
-};
-
-const planetVert = `
-  varying vec3 vPos;
-  varying vec3 vNormal;
-  varying vec3 vViewPosition;
-  void main() {
-    vPos = position;
-    vNormal = normalize(normalMatrix * normal);
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    vViewPosition = -mvPosition.xyz;
-    gl_Position = projectionMatrix * mvPosition;
-  }
-`;
-
-const planetFrag = `
-  uniform float time;
-  uniform vec3 lightDir;
-  varying vec3 vPos;
-  varying vec3 vNormal;
-  varying vec3 vViewPosition;
-
-  float hash(vec3 p) {
-      p = fract(p * 0.3183099 + 0.1);
-      p *= 17.0;
-      return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-  }
-  float noise(vec3 x) {
-      vec3 i = floor(x);
-      vec3 f = fract(x);
-      f = f * f * (3.0 - 2.0 * f);
-      return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
-                     mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-                 mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
-                     mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
-  }
-  float fbm(vec3 p) {
-      float f = 0.0;
-      float amp = 0.5;
-      for(int i = 0; i < 5; i++) {
-          f += amp * noise(p);
-          p *= 2.0;
-          amp *= 0.5;
-      }
-      return f;
-  }
-  float ridged(vec3 p) {
-      float n = noise(p);
-      n = abs(n * 2.0 - 1.0);
-      return 1.0 - n;
-  }
-
-  void main() {
-      vec3 p = normalize(vPos) * 3.5; 
-      
-      float h = fbm(p);
-      h += 0.35 * ridged(p * 2.0 + vec3(0.0, time * 0.01, 0.0));
-      
-      float eps = 0.02;
-      float hx = fbm(p + vec3(eps, 0.0, 0.0));
-      float hy = fbm(p + vec3(0.0, eps, 0.0));
-      vec3 tangent = normalize(cross(vNormal, vec3(0.0, 1.0, 0.0)));
-      vec3 bitangent = normalize(cross(vNormal, tangent));
-      vec3 normal = normalize(vNormal - tangent * (hx - h) / eps * 0.6 - bitangent * (hy - h) / eps * 0.6);
-
-      vec3 colOcean = vec3(0.02, 0.08, 0.15);
-      vec3 colLand = vec3(0.12, 0.24, 0.20);
-      vec3 colMountain = vec3(0.45, 0.40, 0.35);
-      vec3 colCloud = vec3(0.85, 0.92, 1.0);
-      
-      vec3 baseColor = mix(colOcean, colLand, smoothstep(0.3, 0.45, h));
-      baseColor = mix(baseColor, colMountain, smoothstep(0.55, 0.75, h));
-      
-      float cloudNoise = fbm(p * 1.2 + vec3(time * 0.015, 0.0, 0.0));
-      float cloud = smoothstep(0.45, 0.65, cloudNoise);
-      baseColor = mix(baseColor, colCloud, cloud * 0.8);
-      
-      vec3 viewDir = normalize(vViewPosition);
-      float diff = max(dot(normal, lightDir), 0.0);
-      float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 4.0);
-      vec3 atmosColor = vec3(0.2, 0.6, 1.0);
-      
-      vec3 finalColor = baseColor * (0.1 + diff * 0.9);
-      finalColor += atmosColor * fresnel * 1.5;
-      
-      gl_FragColor = vec4(finalColor, 1.0);
-  }
-`;
-
-const planetRadius = 4000;
-const planetGeo = new THREE.SphereGeometry(planetRadius, 256, 128);
-const planetMat = new THREE.ShaderMaterial({
-  vertexShader: planetVert,
-  fragmentShader: planetFrag,
-  uniforms: planetUniforms
-});
+/* 行星背景 */
+const planetUniforms = { time: { value: 0 }, lightDir: { value: new THREE.Vector3(0.4, 0.8, 0.2).normalize() } };
+const planetVert = `varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewPosition; void main() { vPos = position; vNormal = normalize(normalMatrix * normal); vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); vViewPosition = -mvPosition.xyz; gl_Position = projectionMatrix * mvPosition; }`;
+const planetFrag = `uniform float time; uniform vec3 lightDir; varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewPosition;
+  float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+  float noise(vec3 x) { vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y), mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z); }
+  float fbm(vec3 p) { float f = 0.0; float amp = 0.5; for(int i = 0; i < 5; i++) { f += amp * noise(p); p *= 2.0; amp *= 0.5; } return f; }
+  float ridged(vec3 p) { float n = noise(p); n = abs(n * 2.0 - 1.0); return 1.0 - n; }
+  void main() { vec3 p = normalize(vPos) * 3.5; float h = fbm(p); h += 0.35 * ridged(p * 2.0 + vec3(0.0, time * 0.01, 0.0)); float eps = 0.02; float hx = fbm(p + vec3(eps, 0.0, 0.0)); float hy = fbm(p + vec3(0.0, eps, 0.0)); vec3 tangent = normalize(cross(vNormal, vec3(0.0, 1.0, 0.0))); vec3 bitangent = normalize(cross(vNormal, tangent)); vec3 normal = normalize(vNormal - tangent * (hx - h) / eps * 0.6 - bitangent * (hy - h) / eps * 0.6); vec3 colOcean = vec3(0.02, 0.08, 0.15); vec3 colLand = vec3(0.12, 0.24, 0.20); vec3 colMountain = vec3(0.45, 0.40, 0.35); vec3 colCloud = vec3(0.85, 0.92, 1.0); vec3 baseColor = mix(colOcean, colLand, smoothstep(0.3, 0.45, h)); baseColor = mix(baseColor, colMountain, smoothstep(0.55, 0.75, h)); float cloudNoise = fbm(p * 1.2 + vec3(time * 0.015, 0.0, 0.0)); float cloud = smoothstep(0.45, 0.65, cloudNoise); baseColor = mix(baseColor, colCloud, cloud * 0.8); vec3 viewDir = normalize(vViewPosition); float diff = max(dot(normal, lightDir), 0.0); float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 4.0); vec3 atmosColor = vec3(0.2, 0.6, 1.0); vec3 finalColor = baseColor * (0.1 + diff * 0.9); finalColor += atmosColor * fresnel * 1.5; gl_FragColor = vec4(finalColor, 1.0); }`;
+const planetGeo = new THREE.SphereGeometry(4000, 256, 128);
+const planetMat = new THREE.ShaderMaterial({ vertexShader: planetVert, fragmentShader: planetFrag, uniforms: planetUniforms });
 const giantPlanet = new THREE.Mesh(planetGeo, planetMat);
-giantPlanet.position.set(0, -3600, -2000); 
-scene.add(giantPlanet);
+giantPlanet.position.set(0, -3600, -2000); scene.add(giantPlanet);
 
-/* ═══════════════════════════════════════════
-   星云与星空
-   ═══════════════════════════════════════════ */
+/* 星空流星 */
 const STAR_COUNT = 600, STAR_RANGE = 400;
 const starPos = new Float32Array(STAR_COUNT * 3);
-for (let i = 0; i < STAR_COUNT; i++){
-  const a = Math.random() * Math.PI * 2;
-  const rad = 10 + Math.random() * 200;
-  starPos[i*3]   = Math.cos(a) * rad;
-  starPos[i*3+1] = Math.sin(a) * rad + 50; 
-  starPos[i*3+2] = -Math.random() * STAR_RANGE + 20;
-}
-const starGeo = new THREE.BufferGeometry();
-starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
-  color:0x88aaff, size:0.5, sizeAttenuation:true,
-  transparent:true, opacity:0.25, depthWrite:false
-}));
-scene.add(stars);
-
-function createNebulaTexture() {
-  const c = document.createElement('canvas');
-  c.width = 1024; c.height = 1024;
-  const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, 1024, 1024);
-  for(let i=0; i<15; i++){
-    const x = Math.random()*1024;
-    const y = Math.random()*1024;
-    const r = 200 + Math.random()*400;
-    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
-    const hue = 200 + Math.random()*100;
-    grad.addColorStop(0, `hsla(${hue}, 80%, 50%, 0.1)`);
-    grad.addColorStop(1, `hsla(${hue}, 80%, 50%, 0)`);
-    ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
-  }
-  return new THREE.CanvasTexture(c);
-}
-const nebulaMesh = new THREE.Mesh(
-  new THREE.PlaneGeometry(8000, 4000),
-  new THREE.MeshBasicMaterial({
-    map: createNebulaTexture(), transparent: true, opacity: 0.4,
-    depthWrite: false, blending: THREE.AdditiveBlending, fog: false
-  })
-);
-nebulaMesh.position.set(0, 0, -3000);
-scene.add(nebulaMesh);
-
-/* ═══════════════════════════════════════════
-   动态流星轨迹
-   ═══════════════════════════════════════════ */
-const METEOR_COUNT = 90;
-const meteors = [];
-
-const meteorGeo = new THREE.CylinderGeometry(0.04, 0.08, 6, 6);
-meteorGeo.rotateX(Math.PI / 2); 
-const meteorMat = new THREE.MeshBasicMaterial({
-  color: 0x3ee8ff,
-  transparent: true,
-  opacity: 0.75,
-  blending: THREE.AdditiveBlending,
-  depthWrite: false
-});
-
+for (let i = 0; i < STAR_COUNT; i++){ const a = Math.random() * Math.PI * 2; const rad = 10 + Math.random() * 200; starPos[i*3] = Math.cos(a) * rad; starPos[i*3+1] = Math.sin(a) * rad + 50; starPos[i*3+2] = -Math.random() * STAR_RANGE + 20; }
+const starGeo = new THREE.BufferGeometry(); starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color:0x88aaff, size:0.5, sizeAttenuation:true, transparent:true, opacity:0.25, depthWrite:false })); scene.add(stars);
+const METEOR_COUNT = 90; const meteors = [];
+const meteorGeo = new THREE.CylinderGeometry(0.04, 0.08, 6, 6); meteorGeo.rotateX(Math.PI / 2); 
+const meteorMat = new THREE.MeshBasicMaterial({ color: 0x3ee8ff, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false });
 for (let i = 0; i < METEOR_COUNT; i++) {
-  const mesh = new THREE.Mesh(meteorGeo, meteorMat);
-  scene.add(mesh);
-  
+  const mesh = new THREE.Mesh(meteorGeo, meteorMat); scene.add(mesh);
   const side = Math.random() > 0.5 ? 1 : -1;
-  const localX = side * rnd(3.5, 5.5);
-  const localY = rnd(-1, 1);
-  
-  meteors.push({
-    mesh, localX, localY,
-    z: -Math.random() * 350 - 20, 
-    speedScale: rnd(0.95, 1.05) 
-  });
+  meteors.push({ mesh, localX: side * rnd(3.5, 5.5), localY: rnd(-1, 1), z: -Math.random() * 350 - 20, speedScale: rnd(0.95, 1.05) });
 }
-
 function updateMeteors(dt, dz) {
   for (const m of meteors) {
     m.z += dz * m.speedScale;
-    
-    if (m.z > 16) {
-      m.z -= 380;
-      const side = Math.random() > 0.5 ? 1 : -1;
-      m.localX = side * rnd(3.5, 5.5);
-      m.localY = rnd(-1, 1);
-    }
-    
-    const z = m.z;
-    const center = getCurveOffset(z);
-    const T = getTangent(z);
-    const up = new THREE.Vector3(0, 1, 0);
-    const right = new THREE.Vector3().crossVectors(T, up).normalize();
-    const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
-    
-    const worldPos = new THREE.Vector3(center.x, center.y, z)
-        .add(right.clone().multiplyScalar(m.localX))
-        .add(realUp.clone().multiplyScalar(m.localY));
-    
-    m.mesh.position.copy(worldPos);
+    if (m.z > 16) { m.z -= 380; const side = Math.random() > 0.5 ? 1 : -1; m.localX = side * rnd(3.5, 5.5); m.localY = rnd(-1, 1); }
+    const z = m.z; const center = getCurveOffset(z); const T = getTangent(z);
+    const up = new THREE.Vector3(0, 1, 0); const right = new THREE.Vector3().crossVectors(T, up).normalize(); const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+    m.mesh.position.copy(new THREE.Vector3(center.x, center.y, z).add(right.clone().multiplyScalar(m.localX)).add(realUp.clone().multiplyScalar(m.localY)));
     m.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), T);
   }
 }
 
-/* ═══════════ 障碍物与能量球工厂（缩小尺寸） ═══════════ */
+/* 障碍物工厂 */
 const DEBRIS_GEOS = [];
-for (let i = 0; i < 16; i++){
-  const r = Math.random();
-  if (r < 0.40) DEBRIS_GEOS.push(new THREE.BoxGeometry(rnd(0.40,1.20), rnd(0.10,0.45), rnd(0.40,1.10)));
-  else if (r < 0.65) DEBRIS_GEOS.push(new THREE.CylinderGeometry(rnd(0.10,0.30), rnd(0.10,0.30), rnd(0.45,1.30), 6));
-  else if (r < 0.85) DEBRIS_GEOS.push(new THREE.TorusGeometry(rnd(0.28,0.55), rnd(0.05,0.12), 5, 9));
-  else DEBRIS_GEOS.push(new THREE.IcosahedronGeometry(rnd(0.24,0.50), 0));
-}
-
+for (let i = 0; i < 16; i++){ const r = Math.random(); if (r < 0.40) DEBRIS_GEOS.push(new THREE.BoxGeometry(rnd(0.40,1.20), rnd(0.10,0.45), rnd(0.40,1.10))); else if (r < 0.65) DEBRIS_GEOS.push(new THREE.CylinderGeometry(rnd(0.10,0.30), rnd(0.10,0.30), rnd(0.45,1.30), 6)); else if (r < 0.85) DEBRIS_GEOS.push(new THREE.TorusGeometry(rnd(0.28,0.55), rnd(0.05,0.12), 5, 9)); else DEBRIS_GEOS.push(new THREE.IcosahedronGeometry(rnd(0.24,0.50), 0)); }
 const DEBRIS_MATS = [];
-for (let i = 0; i < 7; i++){
-  const m = new THREE.MeshStandardMaterial({
-    color: new THREE.Color().setHSL(0.06 + Math.random()*0.12, 0.4 + Math.random()*0.3, 0.4 + Math.random()*0.3),
-    metalness: 0.92, roughness: 0.55, flatShading: true,
-    emissive: new THREE.Color(0xff5500), 
-    emissiveIntensity: 0.8
-  });
-  if (i === 6){ m.emissive = new THREE.Color(0xff2200); m.emissiveIntensity = 1.5; }
-  DEBRIS_MATS.push(m);
-}
+for (let i = 0; i < 7; i++){ const m = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(0.06 + Math.random()*0.12, 0.4 + Math.random()*0.3, 0.4 + Math.random()*0.3), metalness: 0.92, roughness: 0.55, flatShading: true, emissive: new THREE.Color(0xff5500), emissiveIntensity: 0.8 }); if (i === 6){ m.emissive = new THREE.Color(0xff2200); m.emissiveIntensity = 1.5; } DEBRIS_MATS.push(m); }
 const DEBRIS_SPARK = new THREE.MeshBasicMaterial({ color:0xffcc66 });
-
 function makeDebris(){
   const grp = new THREE.Group();
+  const glowGeo = new THREE.SphereGeometry(0.8, 12, 12); const glowMat = new THREE.MeshBasicMaterial({ color: 0xff4422, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending });
+  grp.add(new THREE.Mesh(glowGeo, glowMat));
   const n = 3 + (Math.random() * 4 | 0);
-  
-  // 光晕稍微缩小以配合整体
-  const glowGeo = new THREE.SphereGeometry(0.8, 12, 12);
-  const glowMat = new THREE.MeshBasicMaterial({
-    color: 0xff4422, transparent: true, opacity: 0.25,
-    depthWrite: false, blending: THREE.AdditiveBlending
-  });
-  const glow = new THREE.Mesh(glowGeo, glowMat);
-  grp.add(glow);
-  
-  for (let i = 0; i < n; i++){
-    const geo = DEBRIS_GEOS[(Math.random()*DEBRIS_GEOS.length)|0];
-    const mat = DEBRIS_MATS[(Math.random()*DEBRIS_MATS.length)|0];
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(rnd(-0.55,0.55), rnd(-0.55,0.55), rnd(-0.55,0.55));
-    m.rotation.set(rnd(0,6.28), rnd(0,6.28), rnd(0,6.28));
-    m.scale.setScalar(rnd(0.75, 1.15));
-    grp.add(m);
-  }
-  
-  if (Math.random() < 0.45){
-    const spark = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), DEBRIS_SPARK);
-    spark.position.set(rnd(-0.4,0.4), rnd(-0.4,0.4), rnd(-0.4,0.4));
-    grp.add(spark);
-  }
-  
-  // 整体缩小尺寸
-  grp.scale.setScalar(rnd(0.8, 1.1)); 
-  return grp;
+  for (let i = 0; i < n; i++){ const m = new THREE.Mesh(DEBRIS_GEOS[(Math.random()*DEBRIS_GEOS.length)|0], DEBRIS_MATS[(Math.random()*DEBRIS_MATS.length)|0]); m.position.set(rnd(-0.55,0.55), rnd(-0.55,0.55), rnd(-0.55,0.55)); m.rotation.set(rnd(0,6.28), rnd(0,6.28), rnd(0,6.28)); m.scale.setScalar(rnd(0.75, 1.15)); grp.add(m); }
+  if (Math.random() < 0.45){ const spark = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), DEBRIS_SPARK); spark.position.set(rnd(-0.4,0.4), rnd(-0.4,0.4), rnd(-0.4,0.4)); grp.add(spark); }
+  grp.scale.setScalar(rnd(0.8, 1.1)); return grp;
 }
 
-const orbCoreGeo = new THREE.IcosahedronGeometry(0.34, 1);
-const orbCoreMat = new THREE.MeshBasicMaterial({color:0x8dffd6});
-const orbGlowGeo = new THREE.SphereGeometry(0.66, 16, 12);
-const orbGlowMat = new THREE.MeshBasicMaterial({
-  color:0x5cffc0, transparent:true, opacity:0.22,
-  depthWrite:false, blending:THREE.AdditiveBlending
-});
+/* 能量球与道具工厂 */
+const orbCoreGeo = new THREE.IcosahedronGeometry(0.34, 1); const orbCoreMat = new THREE.MeshBasicMaterial({color:0x8dffd6});
+const orbGlowGeo = new THREE.SphereGeometry(0.66, 16, 12); const orbGlowMat = new THREE.MeshBasicMaterial({ color:0x5cffc0, transparent:true, opacity:0.22, depthWrite:false, blending:THREE.AdditiveBlending });
 
-/* ═══════════ 游戏逻辑 ═══════════ */
+const puShieldGeo = new THREE.OctahedronGeometry(0.5, 0); const puShieldMat = new THREE.MeshStandardMaterial({ color:0x4da6ff, emissive:0x4da6ff, emissiveIntensity:2, wireframe:true });
+const puWeaponGeo = new THREE.BoxGeometry(0.4, 0.4, 0.8); const puWeaponMat = new THREE.MeshStandardMaterial({ color:0xff4d4d, emissive:0xff4d4d, emissiveIntensity:2 });
+const puNukeGeo   = new THREE.TorusGeometry(0.4, 0.12, 8, 16); const puNukeMat = new THREE.MeshStandardMaterial({ color:0xb066ff, emissive:0xb066ff, emissiveIntensity:2 });
+
+/* 子弹工厂 */
+const bulletGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.0, 4); bulletGeo.rotateX(Math.PI / 2);
+const bulletMat = new THREE.MeshBasicMaterial({ color: 0xff4d4d, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
+
+/* 游戏状态 */
 const LIMIT_X = 4.7, LIMIT_Y = 3.3, PLACE_R = 5.0;
-const obstacles = [];
-const orbs = [];
-
-let scrollSpeed = 0;
-let pointerActive = false;
-let pointerTargetX = 0, pointerTargetY = 0;
-let prevShipX = 0, prevShipY = 0;
+const obstacles = []; const orbs = []; const powerups = []; const bullets = [];
+let scrollSpeed = 0; let pointerActive = false; let pointerTargetX = 0, pointerTargetY = 0; let prevShipX = 0, prevShipY = 0;
 
 const state = {
-  mode: 'ready',
-  speed: 38,
-  baseSpeed: 38,
-  maxSpeed: 108,
-  elapsed: 0,
-  traveled: 0,
-  nextSpawn: 0,
-  score: 0,
-  shipX: 0,
-  shipY: 0,
-  best: +(localStorage.getItem('starrunner_best') || 0)
+  mode: 'ready', speed: 38, baseSpeed: 38, maxSpeed: 108, elapsed: 0, traveled: 0, nextSpawn: 0, score: 0,
+  shipX: 0, shipY: 0, best: +(localStorage.getItem('starrunner_best') || 0),
+  shieldTimer: 0, weaponTimer: 0
 };
 
+function showToast(text, color) {
+  toastEl.innerText = text;
+  toastEl.style.color = color;
+  toastEl.style.animation = 'none';
+  void toastEl.offsetWidth;
+  toastEl.style.animation = 'toastAnim 1.5s ease forwards';
+}
+
 function spawnObstacle(){
-  const grp = makeDebris();
-  const a = Math.random() * Math.PI * 2;
-  const r = Math.sqrt(Math.random()) * PLACE_R;
-  
-  const localX = Math.cos(a)*r;
-  const localY = Math.sin(a)*r;
-  const z = -135 - Math.random()*25;
-  
-  const center = getCurveOffset(z);
-  grp.position.set(center.x + localX, center.y + localY, z);
-  grp.rotation.set(rnd(0,6.28), rnd(0,6.28), rnd(0,6.28));
-  scene.add(grp);
-
-  const box = new THREE.Box3().setFromObject(grp);
-  const sphere = box.getBoundingSphere(new THREE.Sphere());
-
-  obstacles.push({
-    mesh: grp,
-    localX: localX,
-    localY: localY,
-    // 碰撞判定恢复到合理的紧凑大小
-    radius: Math.max(0.5, sphere.radius * 0.8),
-    spin: { x: rnd(-0.9,0.9), y: rnd(-0.9,0.9), z: rnd(-0.6,0.6) }
-  });
+  const grp = makeDebris(); const a = Math.random() * Math.PI * 2; const r = Math.sqrt(Math.random()) * PLACE_R;
+  const localX = Math.cos(a)*r; const localY = Math.sin(a)*r; const z = -135 - Math.random()*25;
+  const center = getCurveOffset(z); grp.position.set(center.x + localX, center.y + localY, z);
+  grp.rotation.set(rnd(0,6.28), rnd(0,6.28), rnd(0,6.28)); scene.add(grp);
+  const sphere = new THREE.Box3().setFromObject(grp).getBoundingSphere(new THREE.Sphere());
+  obstacles.push({ mesh: grp, localX, localY, radius: Math.max(0.5, sphere.radius * 0.8), spin: { x: rnd(-0.9,0.9), y: rnd(-0.9,0.9), z: rnd(-0.6,0.6) } });
 }
 
 function spawnOrb(){
-  const g = new THREE.Group();
-  g.add(new THREE.Mesh(orbGlowGeo, orbGlowMat));
-  const core = new THREE.Mesh(orbCoreGeo, orbCoreMat);
-  g.add(core);
-  
-  const a = Math.random() * Math.PI * 2;
-  const r = Math.sqrt(Math.random()) * 4.2;
-  const localX = Math.cos(a)*r;
-  const localY = Math.sin(a)*r;
-  const z = -130 - Math.random()*22;
+  const g = new THREE.Group(); g.add(new THREE.Mesh(orbGlowGeo, orbGlowMat)); const core = new THREE.Mesh(orbCoreGeo, orbCoreMat); g.add(core);
+  const a = Math.random() * Math.PI * 2; const r = Math.sqrt(Math.random()) * 4.2; const localX = Math.cos(a)*r; const localY = Math.sin(a)*r; const z = -130 - Math.random()*22;
+  const center = getCurveOffset(z); g.position.set(center.x + localX, center.y + localY, z);
+  scene.add(g); orbs.push({ mesh:g, core, localX, localY });
+}
 
-  const center = getCurveOffset(z);
-  g.position.set(center.x + localX, center.y + localY, z);
+function spawnPowerup(){
+  const rand = Math.random();
+  let type = 'shield';
+  let mesh = new THREE.Mesh(puShieldGeo, puShieldMat);
+  if (rand > 0.6) { type = 'weapon'; mesh = new THREE.Mesh(puWeaponGeo, puWeaponMat); }
+  else if (rand > 0.9) { type = 'nuke'; mesh = new THREE.Mesh(puNukeGeo, puNukeMat); }
   
-  scene.add(g);
-  orbs.push({ mesh:g, core, localX, localY });
+  const g = new THREE.Group();
+  g.add(mesh);
+  const glowMat = new THREE.MeshBasicMaterial({ color: mesh.material.color, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false });
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 12), glowMat));
+  
+  const a = Math.random() * Math.PI * 2; const r = Math.sqrt(Math.random()) * 4.0; const localX = Math.cos(a)*r; const localY = Math.sin(a)*r; const z = -130 - Math.random()*22;
+  const center = getCurveOffset(z); g.position.set(center.x + localX, center.y + localY, z);
+  scene.add(g); powerups.push({ mesh:g, core: mesh, type, localX, localY });
 }
 
 function spawnWave(){
@@ -812,6 +496,7 @@ function spawnWave(){
   const count = 2 + Math.round(Math.random() * (1 + t * 3));
   for (let i = 0; i < count; i++) spawnObstacle();
   if (Math.random() < 0.36) spawnOrb();
+  if (Math.random() < 0.15) spawnPowerup(); // 15% 概率生成道具
 }
 
 function spawnLogic(){
@@ -822,376 +507,296 @@ function spawnLogic(){
   spawnWave();
 }
 
-const keys = new Set();
-
 function updateShip(dt){
   let dirX = 0, dirY = 0;
   if (keys.has('a') || keys.has('arrowleft'))  dirX -= 1;
   if (keys.has('d') || keys.has('arrowright')) dirX += 1;
   if (keys.has('w') || keys.has('arrowup'))    dirY += 1;
   if (keys.has('s') || keys.has('arrowdown'))  dirY -= 1;
-
-  if (dirX || dirY){
-    state.shipX += dirX * 15 * dt;
-    state.shipY += dirY * 15 * dt;
-    pointerTargetX = state.shipX;
-    pointerTargetY = state.shipY;
-  } else if (pointerActive){
-    const k = damp(17, dt);
-    state.shipX += (pointerTargetX - state.shipX) * k;
-    state.shipY += (pointerTargetY - state.shipY) * k;
-  }
-
-  state.shipX = clamp(state.shipX, -LIMIT_X, LIMIT_X);
-  state.shipY = clamp(state.shipY, -LIMIT_Y, LIMIT_Y);
-
-  const vx = (state.shipX - prevShipX) / Math.max(dt, 1e-4);
-  const vy = (state.shipY - prevShipY) / Math.max(dt, 1e-4);
-  const k = damp(11, dt);
-  
-  ship.rotation.z += (-vx * 0.035 - ship.rotation.z) * k;
-  ship.rotation.x += ( vy * 0.030 - ship.rotation.x) * k;
-  ship.rotation.y += (0 - ship.rotation.y) * k;
-
-  prevShipX = state.shipX;
-  prevShipY = state.shipY;
+  if (dirX || dirY){ state.shipX += dirX * 15 * dt; state.shipY += dirY * 15 * dt; pointerTargetX = state.shipX; pointerTargetY = state.shipY; }
+  else if (pointerActive){ const k = damp(17, dt); state.shipX += (pointerTargetX - state.shipX) * k; state.shipY += (pointerTargetY - state.shipY) * k; }
+  state.shipX = clamp(state.shipX, -LIMIT_X, LIMIT_X); state.shipY = clamp(state.shipY, -LIMIT_Y, LIMIT_Y);
+  const vx = (state.shipX - prevShipX) / Math.max(dt, 1e-4); const vy = (state.shipY - prevShipY) / Math.max(dt, 1e-4); const k = damp(11, dt);
+  ship.rotation.z += (-vx * 0.035 - ship.rotation.z) * k; ship.rotation.x += ( vy * 0.030 - ship.rotation.x) * k; ship.rotation.y += (0 - ship.rotation.y) * k;
+  prevShipX = state.shipX; prevShipY = state.shipY;
 }
 
 function updateWorld(dt){
   const dz = scrollSpeed * dt;
   const time = performance.now() * 0.001;
-
   planetUniforms.time.value = time;
 
   const sp = starGeo.attributes.position;
-  for (let i = 0; i < STAR_COUNT; i++){
-    let z = sp.array[i*3+2] + dz * 0.8;
-    if (z > 20) z -= STAR_RANGE;
-    sp.array[i*3+2] = z;
-  }
+  for (let i = 0; i < STAR_COUNT; i++){ let z = sp.array[i*3+2] + dz * 0.8; if (z > 20) z -= STAR_RANGE; sp.array[i*3+2] = z; }
   sp.needsUpdate = true;
-
   updateMeteors(dt, dz);
 
-  for (let i = obstacles.length - 1; i >= 0; i--){
-    const o = obstacles[i];
-    const prevZ = o.mesh.position.z;
-    o.mesh.position.z += dz;
+  // 更新道具计时器
+  if (state.shieldTimer > 0) {
+    state.shieldTimer -= dt;
+    shieldTimeEl.innerText = Math.ceil(state.shieldTimer);
+    shieldMesh.visible = true;
+    shieldMesh.rotation.y += 2 * dt;
+    if (state.shieldTimer <= 0) { shieldMesh.visible = false; puShield.style.display = 'none'; }
+    else { puShield.style.display = 'flex'; powerupHud.classList.add('active'); }
+  }
+  if (state.weaponTimer > 0) {
+    state.weaponTimer -= dt;
+    weaponTimeEl.innerText = Math.ceil(state.weaponTimer);
+    if (state.weaponTimer <= 0) { puWeapon.style.display = 'none'; }
+    else { puWeapon.style.display = 'flex'; powerupHud.classList.add('active'); }
     
-    const z = o.mesh.position.z;
+    // 自动开火
+    if (Math.floor(state.weaponTimer * 10) % 2 === 0) { // 5发/秒
+      if (!state.lastShoot || time - state.lastShoot > 0.15) {
+        state.lastShoot = time;
+        const b = new THREE.Mesh(bulletGeo, bulletMat);
+        // 从飞船位置射出，但忽略 Y 轴倾斜，直接正向
+        const offset0 = getCurveOffset(0);
+        const T = getTangent(0);
+        const up = new THREE.Vector3(0,1,0); const right = new THREE.Vector3().crossVectors(T, up).normalize(); const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+        const startPos = new THREE.Vector3(offset0.x, offset0.y, 0).add(right.clone().multiplyScalar(state.shipX)).add(realUp.clone().multiplyScalar(state.shipY)).add(T.clone().multiplyScalar(2));
+        b.position.copy(startPos);
+        b.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), T);
+        scene.add(b);
+        bullets.push({ mesh: b, localX: state.shipX, localY: state.shipY });
+        Sound.shoot();
+      }
+    }
+  }
+  if (state.shieldTimer <= 0 && state.weaponTimer <= 0) {
+    powerupHud.classList.remove('active');
+  }
+
+  // 子弹更新
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.mesh.position.z -= 150 * dt; // 子弹速度
+    const z = b.mesh.position.z;
+    if (z < -200) { scene.remove(b.mesh); bullets.splice(i, 1); continue; }
+    
+    // 子弹与障碍物碰撞
     const center = getCurveOffset(z);
     const T = getTangent(z);
-    const up = new THREE.Vector3(0, 1, 0);
-    const right = new THREE.Vector3().crossVectors(T, up).normalize();
-    const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+    const up = new THREE.Vector3(0,1,0); const right = new THREE.Vector3().crossVectors(T, up).normalize(); const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+    b.mesh.position.copy(new THREE.Vector3(center.x, center.y, z).add(right.clone().multiplyScalar(b.localX)).add(realUp.clone().multiplyScalar(b.localY)));
     
-    o.mesh.position.copy(new THREE.Vector3(center.x, center.y, z)
-        .add(right.clone().multiplyScalar(o.localX))
-        .add(realUp.clone().multiplyScalar(o.localY)));
-
-    o.mesh.rotation.x += o.spin.x * dt;
-    o.mesh.rotation.y += o.spin.y * dt;
-    o.mesh.rotation.z += o.spin.z * dt;
-
-    if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
-      const dx = o.localX - state.shipX;
-      const dy = o.localY - state.shipY;
-      // 稍微优化碰撞检测阈值
-      if (Math.hypot(dx, dy) < o.radius + 0.45){ crash(); }
-    }
-    
-    if (o.mesh.position.z > 16){
-      scene.remove(o.mesh);
-      obstacles.splice(i, 1);
+    for (let j = obstacles.length - 1; j >= 0; j--) {
+      const o = obstacles[j];
+      if (Math.abs(o.mesh.position.z - z) < 2.0) {
+        if (Math.hypot(o.localX - b.localX, o.localY - b.localY) < o.radius + 0.5) {
+          // 击中
+          createExplosion(o.mesh.position);
+          scene.remove(o.mesh); obstacles.splice(j, 1);
+          scene.remove(b.mesh); bullets.splice(i, 1);
+          Sound.explode(); // 使用小爆炸声或单独音效
+          break;
+        }
+      }
     }
   }
 
-  for (let i = orbs.length - 1; i >= 0; i--){
-    const o = orbs[i];
-    const prevZ = o.mesh.position.z;
+  // 障碍物更新
+  for (let i = obstacles.length - 1; i >= 0; i--){
+    const o = obstacles[i]; const prevZ = o.mesh.position.z;
     o.mesh.position.z += dz;
-    
-    const z = o.mesh.position.z;
-    const center = getCurveOffset(z);
-    const T = getTangent(z);
-    const up = new THREE.Vector3(0, 1, 0);
-    const right = new THREE.Vector3().crossVectors(T, up).normalize();
-    const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
-    
-    o.mesh.position.copy(new THREE.Vector3(center.x, center.y, z)
-        .add(right.clone().multiplyScalar(o.localX))
-        .add(realUp.clone().multiplyScalar(o.localY)));
+    const z = o.mesh.position.z; const center = getCurveOffset(z); const T = getTangent(z);
+    const up = new THREE.Vector3(0, 1, 0); const right = new THREE.Vector3().crossVectors(T, up).normalize(); const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+    o.mesh.position.copy(new THREE.Vector3(center.x, center.y, z).add(right.clone().multiplyScalar(o.localX)).add(realUp.clone().multiplyScalar(o.localY)));
+    o.mesh.rotation.x += o.spin.x * dt; o.mesh.rotation.y += o.spin.y * dt; o.mesh.rotation.z += o.spin.z * dt;
 
-    o.core.rotation.x += 2.2 * dt;
-    o.core.rotation.y += 3.0 * dt;
-
+    // 碰撞判定（如果有护盾则免伤）
     if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
-      const dx = o.localX - state.shipX;
-      const dy = o.localY - state.shipY;
-      if (Math.hypot(dx, dy) < 1.35){
-        state.score += 50;
-        Sound.pickup();
-        scene.remove(o.mesh);
-        orbs.splice(i, 1);
-        continue;
+      if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < o.radius + 0.45) {
+        if (state.shieldTimer > 0) {
+          // 护盾抵挡
+          createExplosion(o.mesh.position);
+          scene.remove(o.mesh); obstacles.splice(i, 1);
+          Sound.explode();
+        } else {
+          crash();
+        }
       }
     }
-    
-    if (o.mesh.position.z > 16){
-      scene.remove(o.mesh);
-      orbs.splice(i, 1);
+    if (o.mesh.position.z > 16){ scene.remove(o.mesh); obstacles.splice(i, 1); }
+  }
+
+  // 能量球更新
+  for (let i = orbs.length - 1; i >= 0; i--){
+    const o = orbs[i]; const prevZ = o.mesh.position.z;
+    o.mesh.position.z += dz;
+    const z = o.mesh.position.z; const center = getCurveOffset(z); const T = getTangent(z);
+    const up = new THREE.Vector3(0, 1, 0); const right = new THREE.Vector3().crossVectors(T, up).normalize(); const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+    o.mesh.position.copy(new THREE.Vector3(center.x, center.y, z).add(right.clone().multiplyScalar(o.localX)).add(realUp.clone().multiplyScalar(o.localY)));
+    o.core.rotation.x += 2.2 * dt; o.core.rotation.y += 3.0 * dt;
+
+    if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
+      if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.35){
+        state.score += 50; Sound.pickup(); scene.remove(o.mesh); orbs.splice(i, 1); continue;
+      }
     }
+    if (o.mesh.position.z > 16){ scene.remove(o.mesh); orbs.splice(i, 1); }
+  }
+
+  // 道具更新
+  for (let i = powerups.length - 1; i >= 0; i--){
+    const o = powerups[i]; const prevZ = o.mesh.position.z;
+    o.mesh.position.z += dz;
+    const z = o.mesh.position.z; const center = getCurveOffset(z); const T = getTangent(z);
+    const up = new THREE.Vector3(0, 1, 0); const right = new THREE.Vector3().crossVectors(T, up).normalize(); const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+    o.mesh.position.copy(new THREE.Vector3(center.x, center.y, z).add(right.clone().multiplyScalar(o.localX)).add(realUp.clone().multiplyScalar(o.localY)));
+    o.core.rotation.x += 2.0 * dt; o.core.rotation.y += 2.5 * dt;
+
+    if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
+      if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.4){
+        // 拾取逻辑
+        if (o.type === 'shield') {
+          state.shieldTimer = 5.0; // 5秒护盾
+          showToast('护盾激活', '#4da6ff');
+          Sound.powerup('shield');
+        } else if (o.type === 'weapon') {
+          state.weaponTimer = 8.0; // 8秒武器
+          showToast('武器系统上线', '#ff4d4d');
+          Sound.powerup('weapon');
+        } else if (o.type === 'nuke') {
+          showToast('全屏消除！', '#b066ff');
+          Sound.powerup('nuke');
+          // 全屏消除
+          for (let j = obstacles.length - 1; j >= 0; j--) {
+            createExplosion(obstacles[j].mesh.position);
+            scene.remove(obstacles[j].mesh);
+          }
+          obstacles.length = 0;
+        }
+        scene.remove(o.mesh); powerups.splice(i, 1); continue;
+      }
+    }
+    if (o.mesh.position.z > 16){ scene.remove(o.mesh); powerups.splice(i, 1); }
   }
 }
 
 function updateCamera(dt){
-  const offset0 = getCurveOffset(0);
-  const T = getTangent(0);
-  const up = new THREE.Vector3(0, 1, 0);
-  const right = new THREE.Vector3().crossVectors(T, up).normalize();
-  const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
-
-  const shipWorld = new THREE.Vector3(offset0.x, offset0.y, 0)
-      .add(right.clone().multiplyScalar(state.shipX))
-      .add(realUp.clone().multiplyScalar(state.shipY));
-
-  shipPivot.position.copy(shipWorld);
-  shipPivot.up.copy(realUp);
-  shipPivot.lookAt(shipWorld.clone().add(T)); 
-
-  const camOffset = T.clone().multiplyScalar(-14); 
-  const camUpOffset = realUp.clone().multiplyScalar(4.0);
-  
-  const desiredCamPos = new THREE.Vector3(offset0.x, offset0.y, 0).add(camOffset).add(camUpOffset);
-  const camTarget = new THREE.Vector3(offset0.x, offset0.y, 0).add(T.clone().multiplyScalar(30));
-
-  camera.position.copy(desiredCamPos);
-  camera.up.copy(realUp);
-  camera.lookAt(camTarget);
+  const offset0 = getCurveOffset(0); const T = getTangent(0);
+  const up = new THREE.Vector3(0, 1, 0); const right = new THREE.Vector3().crossVectors(T, up).normalize(); const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+  const shipWorld = new THREE.Vector3(offset0.x, offset0.y, 0).add(right.clone().multiplyScalar(state.shipX)).add(realUp.clone().multiplyScalar(state.shipY));
+  shipPivot.position.copy(shipWorld); shipPivot.up.copy(realUp); shipPivot.lookAt(shipWorld.clone().add(T)); 
+  const camOffset = T.clone().multiplyScalar(-14); const camUpOffset = realUp.clone().multiplyScalar(4.0);
+  camera.position.copy(new THREE.Vector3(offset0.x, offset0.y, 0).add(camOffset).add(camUpOffset));
+  camera.up.copy(realUp); camera.lookAt(new THREE.Vector3(offset0.x, offset0.y, 0).add(T.clone().multiplyScalar(30)));
 }
 
-/* ═══════════ 爆炸粒子 ═══════════ */
-const explosion = { points:null, vels:[], life:0, maxLife:1.3 };
+/* 爆炸粒子 */
+const explosions = [];
 function createExplosion(pos){
-  const N = 110;
-  const positions = new Float32Array(N * 3);
-  const vels = [];
+  const N = 30; const positions = new Float32Array(N * 3); const vels = [];
   for (let i = 0; i < N; i++){
-    positions[i*3]   = pos.x;
-    positions[i*3+1] = pos.y;
-    positions[i*3+2] = pos.z;
-    const v = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5)
-      .normalize().multiplyScalar(3 + Math.random()*15);
+    positions[i*3] = pos.x; positions[i*3+1] = pos.y; positions[i*3+2] = pos.z;
+    const v = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize().multiplyScalar(3 + Math.random()*15);
     vels.push(v);
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const pts = new THREE.Points(geo, new THREE.PointsMaterial({
-    color:0xffb04d, size:0.55, transparent:true, opacity:1,
-    depthWrite:false, blending:THREE.AdditiveBlending
-  }));
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color:0xffb04d, size:0.55, transparent:true, opacity:1, depthWrite:false, blending:THREE.AdditiveBlending }));
   scene.add(pts);
-  explosion.points = pts;
-  explosion.vels = vels;
-  explosion.life = 1.3;
-  explosion.maxLife = 1.3;
+  explosions.push({ points: pts, vels, life: 1.0 });
 }
 function updateParticles(dt){
-  if (!explosion.points) return;
-  explosion.life -= dt;
-  if (explosion.life <= 0){
-    scene.remove(explosion.points);
-    explosion.points.geometry.dispose();
-    explosion.points.material.dispose();
-    explosion.points = null;
-    return;
+  for (let i = explosions.length - 1; i >= 0; i--){
+    const ex = explosions[i];
+    ex.life -= dt;
+    if (ex.life <= 0) { scene.remove(ex.points); ex.points.geometry.dispose(); ex.points.material.dispose(); explosions.splice(i, 1); continue; }
+    const pos = ex.points.geometry.attributes.position; const drag = 1 - 2.2 * dt;
+    for (let j = 0; j < ex.vels.length; j++){ const v = ex.vels[j]; pos.array[j*3] += v.x * dt; pos.array[j*3+1] += v.y * dt; pos.array[j*3+2] += v.z * dt; v.multiplyScalar(drag); }
+    pos.needsUpdate = true; ex.points.material.opacity = Math.max(0, ex.life);
   }
-  const pos = explosion.points.geometry.attributes.position;
-  const drag = 1 - 2.2 * dt;
-  for (let i = 0; i < explosion.vels.length; i++){
-    const v = explosion.vels[i];
-    pos.array[i*3]   += v.x * dt;
-    pos.array[i*3+1] += v.y * dt;
-    pos.array[i*3+2] += v.z * dt;
-    v.multiplyScalar(drag);
-  }
-  pos.needsUpdate = true;
-  explosion.points.material.opacity = Math.max(0, explosion.life / explosion.maxLife);
 }
 
-/* ═══════════ 游戏流程 ═══════════ */
 function resetScene(){
-  for (const o of obstacles) scene.remove(o.mesh);
-  obstacles.length = 0;
-  for (const o of orbs) scene.remove(o.mesh);
-  orbs.length = 0;
+  for (const o of obstacles) scene.remove(o.mesh); obstacles.length = 0;
+  for (const o of orbs) scene.remove(o.mesh); orbs.length = 0;
+  for (const o of powerups) scene.remove(o.mesh); powerups.length = 0;
+  for (const o of bullets) scene.remove(o.mesh); bullets.length = 0;
+  for (const o of explosions) scene.remove(o.points); explosions.length = 0;
 
-  shipPivot.visible = true;
-  shipPivot.position.set(0, 0, 0);
-  shipPivot.rotation.set(0, 0, 0);
-  ship.rotation.set(0, 0, 0);
-  
-  state.shipX = 0;
-  state.shipY = 0;
-  prevShipX = 0; prevShipY = 0;
-  pointerTargetX = 0; pointerTargetY = 0;
-  pointerActive = false;
+  shipPivot.visible = true; shipPivot.position.set(0, 0, 0); shipPivot.rotation.set(0, 0, 0); ship.rotation.set(0, 0, 0);
+  state.shipX = 0; state.shipY = 0; prevShipX = 0; prevShipY = 0; pointerTargetX = 0; pointerTargetY = 0; pointerActive = false;
+  state.shieldTimer = 0; state.weaponTimer = 0; shieldMesh.visible = false;
+  puShield.style.display = 'none'; puWeapon.style.display = 'none'; powerupHud.classList.remove('active');
 }
 
 function startGame(){
-  Sound.init();
-  Sound.unlock(); // 关键：强制唤醒手机端音频
-  Sound.fadeBGM(0.25, 1.0); 
-
-  state.mode = 'playing';
-  state.elapsed = 0;
-  state.speed = state.baseSpeed;
-  state.traveled = 0;
-  state.nextSpawn = 45;
-  state.score = 0;
-
+  Sound.init(); Sound.unlock(); Sound.fadeBGM(0.25, 1.0); 
+  state.mode = 'playing'; state.elapsed = 0; state.speed = state.baseSpeed; state.traveled = 0; state.nextSpawn = 45; state.score = 0;
   resetScene();
-
-  scoreEl.textContent = '0';
-  bestEl.textContent = state.best;
-  hudEl.style.display = 'flex';
-  startScreen.classList.add('hidden');
-  overScreen.classList.add('hidden');
-  rewardModal.classList.add('hidden');
+  scoreEl.textContent = '0'; bestEl.textContent = state.best;
+  hudEl.style.display = 'flex'; startScreen.classList.add('hidden'); overScreen.classList.add('hidden'); rewardModal.classList.add('hidden');
 }
 
 function exitToMenu(){
-  state.mode = 'ready';
-  resetScene();
-  overScreen.classList.add('hidden');
-  rewardModal.classList.add('hidden');
-  hudEl.style.display = 'none';
-  startScreen.classList.remove('hidden');
+  state.mode = 'ready'; resetScene(); overScreen.classList.add('hidden'); rewardModal.classList.add('hidden'); hudEl.style.display = 'none'; startScreen.classList.remove('hidden');
 }
 
 function crash(){
   if (state.mode !== 'playing') return;
-  state.mode = 'over';
-  shipPivot.visible = false;
-  
-  Sound.fadeBGM(0.05, 1.5);
-
-  createExplosion(shipPivot.position);
-  Sound.explode();
-
-  flashEl.style.opacity = '0.9';
-  setTimeout(() => { flashEl.style.opacity = '0'; }, 90);
-
+  state.mode = 'over'; shipPivot.visible = false;
+  Sound.fadeBGM(0.05, 1.5); createExplosion(shipPivot.position); Sound.explode();
+  flashEl.style.opacity = '0.9'; setTimeout(() => { flashEl.style.opacity = '0'; }, 90);
   const finalScore = Math.floor(state.score);
-  if (finalScore > state.best){
-    state.best = finalScore;
-    localStorage.setItem('starrunner_best', String(state.best));
-  }
-
+  if (finalScore > state.best){ state.best = finalScore; localStorage.setItem('starrunner_best', String(state.best)); }
   setTimeout(() => {
-    finalScoreEl.textContent = finalScore;
-    finalBestEl.textContent = '最高分 ' + state.best;
-    overScreen.classList.remove('hidden');
-    hudEl.style.display = 'none';
+    finalScoreEl.textContent = finalScore; finalBestEl.textContent = '最高分 ' + state.best;
+    overScreen.classList.remove('hidden'); hudEl.style.display = 'none';
   }, 950);
 }
 
-/* ═══════════ 赞赏功能与爱心特效 ═══════════ */
+/* 赞赏功能 */
 function spawnHearts() {
   for (let i = 0; i < 20; i++) {
-    const el = document.createElement('div');
-    el.className = 'heart-particle';
+    const el = document.createElement('div'); el.className = 'heart-particle';
     el.innerText = ['❤️', '💖', '✨', '🌟'][Math.floor(Math.random() * 4)];
-    
-    const startX = Math.random() * 100;
-    const delay = Math.random() * 1.5;
-    const duration = 2 + Math.random() * 2;
-    const size = 16 + Math.random() * 24;
-    
-    el.style.left = `${startX}vw`;
-    el.style.top = `-50px`;
-    el.style.fontSize = `${size}px`;
-    el.style.animation = `fall ${duration}s linear ${delay}s forwards`;
-    
-    document.body.appendChild(el);
-    
-    setTimeout(() => {
-      el.remove();
-    }, (duration + delay) * 1000);
+    const startX = Math.random() * 100; const delay = Math.random() * 1.5; const duration = 2 + Math.random() * 2; const size = 16 + Math.random() * 24;
+    el.style.left = `${startX}vw`; el.style.top = `-50px`; el.style.fontSize = `${size}px`; el.style.animation = `fall ${duration}s linear ${delay}s forwards`;
+    document.body.appendChild(el); setTimeout(() => { el.remove(); }, (duration + delay) * 1000);
   }
 }
-
-function showReward() {
-  Sound.init();
-  Sound.unlock();
-  if (state.mode !== 'playing') Sound.fadeBGM(0.1, 0.5);
-  rewardModal.classList.remove('hidden');
-  spawnHearts();
-}
-
-function closeReward() {
-  rewardModal.classList.add('hidden');
-  if (state.mode !== 'playing') Sound.fadeBGM(0.25, 0.5);
-}
+function showReward() { Sound.init(); Sound.unlock(); if (state.mode !== 'playing') Sound.fadeBGM(0.1, 0.5); rewardModal.classList.remove('hidden'); spawnHearts(); }
+function closeReward() { rewardModal.classList.add('hidden'); if (state.mode !== 'playing') Sound.fadeBGM(0.25, 0.5); }
 
 document.getElementById('rewardBtn').addEventListener('click', showReward);
 document.getElementById('rewardBtn2').addEventListener('click', showReward);
 document.getElementById('closeRewardBtn').addEventListener('click', closeReward);
-
 document.getElementById('qrContainer').addEventListener('click', closeReward);
-rewardModal.addEventListener('click', (e) => {
-  if (e.target === rewardModal) closeReward();
-});
+rewardModal.addEventListener('click', (e) => { if (e.target === rewardModal) closeReward(); });
 
-/* ═══════════ 主循环 ═══════════ */
+/* 主循环 */
 const clock = new THREE.Clock();
-
 function update(dt){
   const time = performance.now() * 0.001;
-
   if (state.mode === 'playing'){
     state.elapsed += dt;
     const t = 1 - Math.exp(-state.elapsed / 45);
     state.speed = state.baseSpeed + (state.maxSpeed - state.baseSpeed) * t;
-    state.traveled += state.speed * dt;
-    scrollSpeed = state.speed;
-
-    updateShip(dt);
-    spawnLogic();
-
-    state.score += state.speed * dt * 0.35;
-    scoreEl.textContent = Math.floor(state.score);
-
+    state.traveled += state.speed * dt; scrollSpeed = state.speed;
+    updateShip(dt); spawnLogic();
+    state.score += state.speed * dt * 0.35; scoreEl.textContent = Math.floor(state.score);
   } else if (state.mode === 'ready'){
     scrollSpeed = 22;
-    const offset0 = getCurveOffset(0);
-    shipPivot.position.set(offset0.x, offset0.y, 0);
-    ship.position.y = Math.sin(time * 1.5) * 0.22;
-    ship.rotation.y = Math.sin(time * 0.6) * 0.25;
-    ship.rotation.z = Math.sin(time * 0.9) * 0.06;
+    const offset0 = getCurveOffset(0); shipPivot.position.set(offset0.x, offset0.y, 0);
+    ship.position.y = Math.sin(time * 1.5) * 0.22; ship.rotation.y = Math.sin(time * 0.6) * 0.25; ship.rotation.z = Math.sin(time * 0.9) * 0.06;
   } else {
-    scrollSpeed *= Math.exp(-4 * dt);
-    if (scrollSpeed < 0.4) scrollSpeed = 0;
+    scrollSpeed *= Math.exp(-4 * dt); if (scrollSpeed < 0.4) scrollSpeed = 0;
   }
-
-  updateWorld(dt);
-  updateParticles(dt);
-  
-  if (state.mode !== 'over') {
-      updateCamera(dt);
-  } else {
-      camera.position.z += dt * 2;
-  }
+  updateWorld(dt); updateParticles(dt);
+  if (state.mode !== 'over') { updateCamera(dt); } else { camera.position.z += dt * 2; }
 }
 
 function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
-  update(dt);
-  renderer.render(scene, camera);
+  update(dt); renderer.render(scene, camera);
 }
 
-/* ═══════════ 输入 & 自适应 ═══════════ */
+/* 输入 */
+const keys = new Set();
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
@@ -1203,47 +808,34 @@ addEventListener('blur', () => keys.clear());
 
 addEventListener('mousemove', e => {
   if (state.mode !== 'playing') return;
-  const nx = (e.clientX / innerWidth) * 2 - 1;
-  const ny = -((e.clientY / innerHeight) * 2 - 1);
-  pointerTargetX = nx * LIMIT_X;
-  pointerTargetY = ny * LIMIT_Y;
-  pointerActive = true;
+  const nx = (e.clientX / innerWidth) * 2 - 1; const ny = -((e.clientY / innerHeight) * 2 - 1);
+  pointerTargetX = nx * LIMIT_X; pointerTargetY = ny * LIMIT_Y; pointerActive = true;
 });
 
 let touchId = null, lastTX = 0, lastTY = 0;
 addEventListener('touchstart', e => {
   if (state.mode !== 'playing') return;
-  const t = e.changedTouches[0];
-  touchId = t.identifier;
-  lastTX = t.clientX; lastTY = t.clientY;
+  const t = e.changedTouches[0]; touchId = t.identifier; lastTX = t.clientX; lastTY = t.clientY;
 }, { passive:true });
 addEventListener('touchmove', e => {
   if (state.mode !== 'playing' || touchId === null) return;
   for (const t of e.changedTouches){
     if (t.identifier !== touchId) continue;
-    const dx = t.clientX - lastTX;
-    const dy = t.clientY - lastTY;
-    lastTX = t.clientX; lastTY = t.clientY;
+    const dx = t.clientX - lastTX; const dy = t.clientY - lastTY; lastTX = t.clientX; lastTY = t.clientY;
     pointerTargetX = clamp(pointerTargetX + dx * 0.045, -LIMIT_X, LIMIT_X);
     pointerTargetY = clamp(pointerTargetY - dy * 0.045, -LIMIT_Y, LIMIT_Y);
     pointerActive = true;
   }
   e.preventDefault();
 }, { passive:false });
-addEventListener('touchend', e => {
-  for (const t of e.changedTouches){
-    if (t.identifier === touchId) touchId = null;
-  }
-}, { passive:true });
+addEventListener('touchend', e => { for (const t of e.changedTouches){ if (t.identifier === touchId) touchId = null; } }, { passive:true });
 
 document.getElementById('startBtn').addEventListener('click', startGame);
 document.getElementById('retryBtn').addEventListener('click', startGame);
 document.getElementById('exitBtn').addEventListener('click', exitToMenu);
 
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
 });
 
 bestEl.textContent = state.best;
