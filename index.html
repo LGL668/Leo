@@ -50,11 +50,15 @@
   .btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 52px rgba(62,232,255,.85)}
   .btn:active{transform:scale(.96)}
 
+  /* 修复 Emoji 拦截点击的问题 */
+  .btn * { pointer-events: none; }
+
   .btn-secondary{background:transparent;border:1px solid rgba(62,232,255,.35);color:#8fe3ff;box-shadow:none;}
   .btn-secondary:hover{background:rgba(62,232,255,.1);box-shadow:0 0 25px rgba(62,232,255,.2);}
 
-  .btn-reward {background: linear-gradient(135deg, #ff3d8b, #ff8a3d); color: #fff; box-shadow: 0 0 36px rgba(255,61,139,.5);}
-  .btn-reward:hover {box-shadow: 0 0 52px rgba(255,61,139,.85);}
+  /* 赞赏按钮缩小 */
+  .btn-reward {background: linear-gradient(135deg, #ff3d8b, #ff8a3d); color: #fff; box-shadow: 0 0 30px rgba(255,61,139,.4); padding: 14px 28px; font-size: 14px; letter-spacing: 1px;}
+  .btn-reward:hover {box-shadow: 0 0 40px rgba(255,61,139,.75);}
 
   .version { font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,0.3); margin-top: 24px; font-family: monospace; }
 
@@ -64,12 +68,17 @@
   #flash{position:fixed;inset:0;background:#ff2d6f;opacity:0;pointer-events:none;
          transition:opacity .12s ease; z-index: 99;}
 
-  /* 赞赏弹窗特有样式 */
+  /* 赞赏弹窗特有样式（二维码变小） */
   .qr-placeholder {
-    width: 180px; height: 180px; margin: 20px auto;
+    width: 110px; height: 110px; margin: 15px auto;
     background: #fff; border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
     position: relative; overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .qr-placeholder:hover {
+    transform: scale(1.05);
   }
   .qr-placeholder img { 
     width: 100%; height: 100%; object-fit: cover; 
@@ -110,12 +119,12 @@
     <div class="tips">
       移动<b>鼠标</b> 或 <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>
       <span class="key">↑↓←→</span> 操控飞船<br>
-      躲避<b style="color:#ff3d8b">太空垃圾</b>，收集<b style="color:#5cffc0">绿色能量球</b><br>
+      躲避<b style="color:#ff3d8b">红色太空垃圾</b>，收集<b style="color:#5cffc0">绿色能量球</b><br>
       感受赛道弯曲，跟随流星轨迹
     </div>
     <div class="btn-group">
       <button class="btn" id="startBtn">开始飞行</button>
-      <button class="btn btn-reward" id="rewardBtn">赞赏作者 ☕</button>
+      <button class="btn btn-reward" id="rewardBtn">赞赏 ☕</button>
     </div>
     <div class="version">v1.0</div>
   </div>
@@ -143,12 +152,12 @@
     <div style="font-size: 13px; opacity: 0.6; margin-bottom: 10px;">本游戏完全免费，您的支持是我更新的动力</div>
     
     <!-- 二维码：直接读取同目录下的 qrcode.png -->
-    <div class="qr-placeholder">
+    <div class="qr-placeholder" id="qrContainer">
       <img src="./qrcode.png" alt="赞赏码">
     </div>
     
-    <div style="font-size: 12px; opacity: 0.4; margin-bottom: 20px;">长按识别 / 扫码赞赏</div>
-    <button class="btn btn-secondary" id="closeRewardBtn" style="padding: 12px 40px; font-size: 14px;">关闭</button>
+    <div style="font-size: 12px; opacity: 0.4; margin-bottom: 20px;">点击图片或背景关闭</div>
+    <button class="btn btn-secondary" id="closeRewardBtn" style="padding: 10px 30px; font-size: 13px;">关闭</button>
   </div>
 </div>
 
@@ -342,87 +351,87 @@ function getTangent(z) {
     return new THREE.Vector3(dx, dy, -1).normalize();
 }
 
-/* ═══════════ 全新科幻战机 ═══════════ */
+/* ═══════════ 全新科幻战机（保持高亮） ═══════════ */
 function buildShip(){
   const g = new THREE.Group();
   
   const bodyMat = new THREE.MeshStandardMaterial({ 
-    color: 0x2a3b4c, metalness: 0.9, roughness: 0.25, flatShading: true 
+    color: 0xffffff, emissive: 0x3ee8ff, emissiveIntensity: 1.5, metalness: 1, roughness: 0.1, flatShading: true 
   });
   const accentMat = new THREE.MeshStandardMaterial({ 
-    color: 0x00e5ff, emissive: 0x00e5ff, emissiveIntensity: 1.5, metalness: 1, roughness: 0.1 
+    color: 0x00e5ff, emissive: 0x00e5ff, emissiveIntensity: 3.0, metalness: 1, roughness: 0.05 
   });
 
-  const bodyGeo = new THREE.CylinderGeometry(0.35, 0.08, 2.4, 6, 1);
+  const bodyGeo = new THREE.CylinderGeometry(0.5, 0.12, 3.2, 6, 1);
   bodyGeo.rotateX(Math.PI / 2);
   bodyGeo.scale(1, 0.45, 1); 
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.position.z = -0.2;
   g.add(body);
 
-  const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), accentMat);
-  cockpit.position.set(0, 0.1, -0.3);
-  cockpit.scale.set(1, 0.6, 2.0);
+  const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 16), accentMat);
+  cockpit.position.set(0, 0.15, -0.4);
+  cockpit.scale.set(1, 0.6, 2.2);
   g.add(cockpit);
 
-  const wingGeo = new THREE.BoxGeometry(1.8, 0.06, 0.6);
+  const wingGeo = new THREE.BoxGeometry(2.6, 0.1, 0.8);
   
   const wingLeft = new THREE.Mesh(wingGeo, bodyMat);
-  wingLeft.position.set(-0.7, 0, 0.4);
+  wingLeft.position.set(-1.0, 0, 0.5);
   wingLeft.rotation.y = 0.35; 
   g.add(wingLeft);
 
   const wingRight = new THREE.Mesh(wingGeo, bodyMat);
-  wingRight.position.set(0.7, 0, 0.4);
+  wingRight.position.set(1.0, 0, 0.5);
   wingRight.rotation.y = -0.35;
   g.add(wingRight);
 
-  const tipGeo = new THREE.BoxGeometry(0.08, 0.12, 0.8);
+  const tipGeo = new THREE.BoxGeometry(0.15, 0.2, 1.1);
   const tipLeft = new THREE.Mesh(tipGeo, accentMat);
-  tipLeft.position.set(-1.5, 0, 0.5);
+  tipLeft.position.set(-2.2, 0, 0.6);
   tipLeft.rotation.y = 0.35;
   g.add(tipLeft);
 
   const tipRight = new THREE.Mesh(tipGeo, accentMat);
-  tipRight.position.set(1.5, 0, 0.5);
+  tipRight.position.set(2.2, 0, 0.6);
   tipRight.rotation.y = -0.35;
   g.add(tipRight);
 
-  const engineGeo = new THREE.CylinderGeometry(0.15, 0.2, 0.6, 8);
+  const engineGeo = new THREE.CylinderGeometry(0.25, 0.3, 0.8, 8);
   engineGeo.rotateX(Math.PI / 2);
   const engineMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 1, roughness: 0.2 });
   
   const engineL = new THREE.Mesh(engineGeo, engineMat);
-  engineL.position.set(-0.4, 0, 0.8);
+  engineL.position.set(-0.6, 0, 1.0);
   g.add(engineL);
   
   const engineR = new THREE.Mesh(engineGeo, engineMat);
-  engineR.position.set(0.4, 0, 0.8);
+  engineR.position.set(0.6, 0, 1.0);
   g.add(engineR);
 
-  const flameGeo = new THREE.ConeGeometry(0.12, 0.9, 8);
+  const flameGeo = new THREE.ConeGeometry(0.22, 1.8, 8);
   flameGeo.rotateX(-Math.PI / 2);
   const flameMat = new THREE.MeshBasicMaterial({ 
-    color: 0x3ee8ff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending 
+    color: 0x7dfbff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending 
   });
   
   const flameL = new THREE.Mesh(flameGeo, flameMat);
-  flameL.position.set(-0.4, 0, 1.35);
+  flameL.position.set(-0.6, 0, 1.8);
   g.add(flameL);
   
   const flameR = new THREE.Mesh(flameGeo, flameMat);
-  flameR.position.set(0.4, 0, 1.35);
+  flameR.position.set(0.6, 0, 1.8);
   g.add(flameR);
 
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), 
-    new THREE.MeshBasicMaterial({ color: 0x2fd8ff, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false })
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 12), 
+    new THREE.MeshBasicMaterial({ color: 0x2fd8ff, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false })
   );
-  glow.position.set(0, 0, 1.0);
-  glow.scale.set(1.5, 1, 2);
+  glow.position.set(0, 0, 1.2);
+  glow.scale.set(1.5, 1, 2.5);
   g.add(glow);
 
-  const lamp = new THREE.PointLight(0x33e8ff, 30, 20, 2);
-  lamp.position.set(0, 0, 1.5);
+  const lamp = new THREE.PointLight(0x33e8ff, 100, 40, 2);
+  lamp.position.set(0, 0, 2.0);
   g.add(lamp);
 
   return g;
@@ -655,20 +664,35 @@ for (let i = 0; i < 16; i++){
   else if (r < 0.85) DEBRIS_GEOS.push(new THREE.TorusGeometry(rnd(0.28,0.55), rnd(0.05,0.12), 5, 9));
   else DEBRIS_GEOS.push(new THREE.IcosahedronGeometry(rnd(0.24,0.50), 0));
 }
+
+// 障碍物材质：提亮，加橙色自发光
 const DEBRIS_MATS = [];
 for (let i = 0; i < 7; i++){
   const m = new THREE.MeshStandardMaterial({
-    color: new THREE.Color().setHSL(0.06 + Math.random()*0.12, 0.15 + Math.random()*0.25, 0.2 + Math.random()*0.3),
-    metalness: 0.92, roughness: 0.55, flatShading: true
+    color: new THREE.Color().setHSL(0.06 + Math.random()*0.12, 0.4 + Math.random()*0.3, 0.4 + Math.random()*0.3),
+    metalness: 0.92, roughness: 0.55, flatShading: true,
+    emissive: new THREE.Color(0xff5500), 
+    emissiveIntensity: 0.8
   });
-  if (i === 6){ m.emissive = new THREE.Color(0xff3322); m.emissiveIntensity = 1.0; }
+  if (i === 6){ m.emissive = new THREE.Color(0xff2200); m.emissiveIntensity = 1.5; }
   DEBRIS_MATS.push(m);
 }
 const DEBRIS_SPARK = new THREE.MeshBasicMaterial({ color:0xffcc66 });
 
+// 障碍物生成函数：加光晕，放大体积
 function makeDebris(){
   const grp = new THREE.Group();
   const n = 3 + (Math.random() * 4 | 0);
+  
+  // 包裹红色光晕
+  const glowGeo = new THREE.SphereGeometry(1.0, 12, 12);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: 0xff4422, transparent: true, opacity: 0.2,
+    depthWrite: false, blending: THREE.AdditiveBlending
+  });
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  grp.add(glow);
+  
   for (let i = 0; i < n; i++){
     const geo = DEBRIS_GEOS[(Math.random()*DEBRIS_GEOS.length)|0];
     const mat = DEBRIS_MATS[(Math.random()*DEBRIS_MATS.length)|0];
@@ -678,12 +702,15 @@ function makeDebris(){
     m.scale.setScalar(rnd(0.75, 1.15));
     grp.add(m);
   }
+  
   if (Math.random() < 0.45){
     const spark = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), DEBRIS_SPARK);
     spark.position.set(rnd(-0.4,0.4), rnd(-0.4,0.4), rnd(-0.4,0.4));
     grp.add(spark);
   }
-  grp.scale.setScalar(rnd(0.6, 1.05));
+  
+  // 整体放大
+  grp.scale.setScalar(rnd(1.3, 1.9)); 
   return grp;
 }
 
@@ -740,7 +767,8 @@ function spawnObstacle(){
     mesh: grp,
     localX: localX,
     localY: localY,
-    radius: Math.max(0.62, sphere.radius * 0.82),
+    // 稍微放宽碰撞判定，因为光晕很大
+    radius: Math.max(0.7, sphere.radius * 0.75),
     spin: { x: rnd(-0.9,0.9), y: rnd(-0.9,0.9), z: rnd(-0.6,0.6) }
   });
 }
@@ -853,7 +881,7 @@ function updateWorld(dt){
     if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
       const dx = o.localX - state.shipX;
       const dy = o.localY - state.shipY;
-      if (Math.hypot(dx, dy) < o.radius + 0.5){ crash(); }
+      if (Math.hypot(dx, dy) < o.radius + 0.6){ crash(); }
     }
     
     if (o.mesh.position.z > 16){
@@ -1091,6 +1119,11 @@ function closeReward() {
 document.getElementById('rewardBtn').addEventListener('click', showReward);
 document.getElementById('rewardBtn2').addEventListener('click', showReward);
 document.getElementById('closeRewardBtn').addEventListener('click', closeReward);
+
+document.getElementById('qrContainer').addEventListener('click', closeReward);
+rewardModal.addEventListener('click', (e) => {
+  if (e.target === rewardModal) closeReward();
+});
 
 /* ═══════════ 主循环 ═══════════ */
 const clock = new THREE.Clock();
