@@ -56,7 +56,6 @@
   .btn-secondary{background:transparent;border:1px solid rgba(62,232,255,.35);color:#8fe3ff;box-shadow:none;}
   .btn-secondary:hover{background:rgba(62,232,255,.1);box-shadow:0 0 25px rgba(62,232,255,.2);}
 
-  /* 赞赏按钮缩小 */
   .btn-reward {background: linear-gradient(135deg, #ff3d8b, #ff8a3d); color: #fff; box-shadow: 0 0 30px rgba(255,61,139,.4); padding: 14px 28px; font-size: 14px; letter-spacing: 1px;}
   .btn-reward:hover {box-shadow: 0 0 40px rgba(255,61,139,.75);}
 
@@ -68,7 +67,7 @@
   #flash{position:fixed;inset:0;background:#ff2d6f;opacity:0;pointer-events:none;
          transition:opacity .12s ease; z-index: 99;}
 
-  /* 赞赏弹窗特有样式（二维码变小） */
+  /* 赞赏弹窗特有样式 */
   .qr-placeholder {
     width: 110px; height: 110px; margin: 15px auto;
     background: #fff; border-radius: 10px;
@@ -126,7 +125,7 @@
       <button class="btn" id="startBtn">开始飞行</button>
       <button class="btn btn-reward" id="rewardBtn">赞赏 ☕</button>
     </div>
-    <div class="version">v1.0</div>
+    <div class="version">v1.5</div>
   </div>
 </div>
 
@@ -204,7 +203,7 @@ const keyLight = new THREE.DirectionalLight(0xbfe8ff, 2.0);
 keyLight.position.set(10, 20, 5); 
 scene.add(keyLight);
 
-/* ═══════════ 音效与音乐引擎 ═══════════ */
+/* ═══════════ 音效与音乐引擎（修复手机端问题） ═══════════ */
 const Sound = {
   ctx:null, master:null, bgmGain:null, sfxGain:null, delayNode:null, ready:false,
   bgmTimer:null, currentChord:0, noteIndex:0,
@@ -242,7 +241,15 @@ const Sound = {
     this.startBGM();
   },
 
+  // 强制唤醒音频（应对手机浏览器策略）
+  unlock() {
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  },
+
   playTone(freq, type, time, dur, vol, pan = 0) {
+    if(!this.ctx) return;
     const o = this.ctx.createOscillator();
     o.type = type;
     o.frequency.setValueAtTime(freq, time);
@@ -279,6 +286,7 @@ const Sound = {
     let beat = 0;
 
     const scheduleNext = () => {
+      if(!this.ctx) return;
       const t = this.ctx.currentTime;
       const chord = chords[this.currentChord];
       
@@ -330,6 +338,15 @@ const Sound = {
   }
 };
 
+// 针对移动端，全局监听首次触摸/点击来解锁音频
+const unlockAudioOnce = () => {
+  Sound.unlock();
+  document.removeEventListener('touchstart', unlockAudioOnce);
+  document.removeEventListener('mousedown', unlockAudioOnce);
+};
+document.addEventListener('touchstart', unlockAudioOnce, { passive: true });
+document.addEventListener('mousedown', unlockAudioOnce, { passive: true });
+
 /* ═══════════ 赛道弯曲数学计算 ═══════════ */
 function getCurveOffset(z) {
     const totalZ = state.traveled - z; 
@@ -351,7 +368,7 @@ function getTangent(z) {
     return new THREE.Vector3(dx, dy, -1).normalize();
 }
 
-/* ═══════════ 全新科幻战机（保持高亮） ═══════════ */
+/* ═══════════ 全新科幻战机 ═══════════ */
 function buildShip(){
   const g = new THREE.Group();
   
@@ -655,7 +672,7 @@ function updateMeteors(dt, dz) {
   }
 }
 
-/* ═══════════ 障碍物与能量球工厂 ═══════════ */
+/* ═══════════ 障碍物与能量球工厂（缩小尺寸） ═══════════ */
 const DEBRIS_GEOS = [];
 for (let i = 0; i < 16; i++){
   const r = Math.random();
@@ -665,7 +682,6 @@ for (let i = 0; i < 16; i++){
   else DEBRIS_GEOS.push(new THREE.IcosahedronGeometry(rnd(0.24,0.50), 0));
 }
 
-// 障碍物材质：提亮，加橙色自发光
 const DEBRIS_MATS = [];
 for (let i = 0; i < 7; i++){
   const m = new THREE.MeshStandardMaterial({
@@ -679,15 +695,14 @@ for (let i = 0; i < 7; i++){
 }
 const DEBRIS_SPARK = new THREE.MeshBasicMaterial({ color:0xffcc66 });
 
-// 障碍物生成函数：加光晕，放大体积
 function makeDebris(){
   const grp = new THREE.Group();
   const n = 3 + (Math.random() * 4 | 0);
   
-  // 包裹红色光晕
-  const glowGeo = new THREE.SphereGeometry(1.0, 12, 12);
+  // 光晕稍微缩小以配合整体
+  const glowGeo = new THREE.SphereGeometry(0.8, 12, 12);
   const glowMat = new THREE.MeshBasicMaterial({
-    color: 0xff4422, transparent: true, opacity: 0.2,
+    color: 0xff4422, transparent: true, opacity: 0.25,
     depthWrite: false, blending: THREE.AdditiveBlending
   });
   const glow = new THREE.Mesh(glowGeo, glowMat);
@@ -709,8 +724,8 @@ function makeDebris(){
     grp.add(spark);
   }
   
-  // 整体放大
-  grp.scale.setScalar(rnd(1.3, 1.9)); 
+  // 整体缩小尺寸
+  grp.scale.setScalar(rnd(0.8, 1.1)); 
   return grp;
 }
 
@@ -767,8 +782,8 @@ function spawnObstacle(){
     mesh: grp,
     localX: localX,
     localY: localY,
-    // 稍微放宽碰撞判定，因为光晕很大
-    radius: Math.max(0.7, sphere.radius * 0.75),
+    // 碰撞判定恢复到合理的紧凑大小
+    radius: Math.max(0.5, sphere.radius * 0.8),
     spin: { x: rnd(-0.9,0.9), y: rnd(-0.9,0.9), z: rnd(-0.6,0.6) }
   });
 }
@@ -881,7 +896,8 @@ function updateWorld(dt){
     if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
       const dx = o.localX - state.shipX;
       const dy = o.localY - state.shipY;
-      if (Math.hypot(dx, dy) < o.radius + 0.6){ crash(); }
+      // 稍微优化碰撞检测阈值
+      if (Math.hypot(dx, dy) < o.radius + 0.45){ crash(); }
     }
     
     if (o.mesh.position.z > 16){
@@ -1024,6 +1040,7 @@ function resetScene(){
 
 function startGame(){
   Sound.init();
+  Sound.unlock(); // 关键：强制唤醒手机端音频
   Sound.fadeBGM(0.25, 1.0); 
 
   state.mode = 'playing';
@@ -1106,6 +1123,7 @@ function spawnHearts() {
 
 function showReward() {
   Sound.init();
+  Sound.unlock();
   if (state.mode !== 'playing') Sound.fadeBGM(0.1, 0.5);
   rewardModal.classList.remove('hidden');
   spawnHearts();
