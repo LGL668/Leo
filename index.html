@@ -121,14 +121,14 @@
     <div class="subtitle">Cyberpunk Street</div>
     <div class="tips">
       移动<b>鼠标</b> 或 <span class="key">A</span><span class="key">D</span> <span class="key">←→</span> 左右漂移<br>
-      躲避<b style="color:#ff3d8b">暗色路障</b>，收集<b style="color:#ffea00">发光金币</b>与<b style="color:#b066ff">强化道具</b><br>
+      躲避<b style="color:#ff3d8b">红色警告路障</b>，收集<b style="color:#ffea00">发光金币</b>与<b style="color:#b066ff">强化道具</b><br>
       压上<b style="color:#3ee8ff">蓝色加速带</b>，体验极限推背感！
     </div>
     <div class="btn-group">
       <button class="btn" onclick="startEngine()">点火起步</button>
       <button class="btn btn-reward" onclick="showReward()">赞赏 ☕</button>
     </div>
-    <div class="version">v5.6 视觉对比版</div>
+    <div class="version">v5.7 高亮路障版</div>
   </div>
 </div>
 
@@ -296,25 +296,25 @@
     scene.add(new THREE.AmbientLight(0xffffff, 1.8)); 
     const keyLight = new THREE.DirectionalLight(0xffffff, 2.5); keyLight.position.set(10, 20, 5); scene.add(keyLight);
 
-    // 【障碍物】去掉了自发光，变成纯暗黑废土金属
+    // 【障碍物】橘红色的危险路障，带强烈自发光
     DEBRIS_GEOS = [new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.CylinderGeometry(0.8, 0.8, 2, 6), new THREE.ConeGeometry(1, 2, 4)];
     DEBRIS_MATS = [
-      new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.9 }), // 深灰废铁
-      new THREE.MeshStandardMaterial({ color: 0x443311, metalness: 0.5, roughness: 0.9 })  // 生锈的金属
+      new THREE.MeshStandardMaterial({ color: 0xff2200, emissive: 0xaa0000, emissiveIntensity: 1.0, roughness: 0.5, metalness: 0.2 }), 
+      new THREE.MeshStandardMaterial({ color: 0x551111, emissive: 0xff0000, emissiveIntensity: 0.6, roughness: 0.8, metalness: 0.8 })
     ];
     
-    // 【金币（能量球）】亮黄色核心 + 旋转白色光环 + 大光晕
+    // 【金币】亮黄色核心 + 旋转白色光环 + 大光晕
     orbCoreGeo = new THREE.IcosahedronGeometry(0.6, 1); 
-    orbCoreMat = new THREE.MeshBasicMaterial({color: 0xffea00}); // 高亮金色
+    orbCoreMat = new THREE.MeshBasicMaterial({color: 0xffea00}); 
     orbRingGeo = new THREE.TorusGeometry(0.9, 0.08, 8, 24);
     orbRingMat = new THREE.MeshBasicMaterial({color: 0xffffff});
     orbGlowGeo = new THREE.SphereGeometry(1.2, 16, 12); 
     orbGlowMat = new THREE.MeshBasicMaterial({ color: 0xffea00, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending });
     
     // 【强化道具】高亮自发光 + 强对比度
-    puShieldGeo = new THREE.OctahedronGeometry(0.8, 0); puShieldMat = new THREE.MeshBasicMaterial({ color: 0x3ee8ff }); // 极亮蓝
-    puWeaponGeo = new THREE.BoxGeometry(0.6, 0.6, 1.0); puWeaponMat = new THREE.MeshBasicMaterial({ color: 0xff3d8b }); // 极亮红
-    puNukeGeo   = new THREE.TorusGeometry(0.6, 0.15, 8, 16); puNukeMat = new THREE.MeshBasicMaterial({ color: 0xb066ff }); // 极亮紫
+    puShieldGeo = new THREE.OctahedronGeometry(0.8, 0); puShieldMat = new THREE.MeshBasicMaterial({ color: 0x3ee8ff }); 
+    puWeaponGeo = new THREE.BoxGeometry(0.6, 0.6, 1.0); puWeaponMat = new THREE.MeshBasicMaterial({ color: 0xff3d8b }); 
+    puNukeGeo   = new THREE.TorusGeometry(0.6, 0.15, 8, 16); puNukeMat = new THREE.MeshBasicMaterial({ color: 0xb066ff }); 
     
     boostPadGeo = new THREE.PlaneGeometry(4, 10); 
     boostPadMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
@@ -449,8 +449,16 @@
 
       const grp = new THREE.Group();
       const m = new THREE.Mesh(DEBRIS_GEOS[Math.floor(Math.random()*DEBRIS_GEOS.length)], DEBRIS_MATS[Math.floor(Math.random()*DEBRIS_MATS.length)]);
-      m.rotation.set(rnd(0,6.28), rnd(0,6.28), rnd(0,6.28)); grp.add(m);
+      m.rotation.set(rnd(0,6.28), rnd(0,6.28), rnd(0,6.28)); 
+      grp.add(m);
+      
       const sphere = new THREE.Box3().setFromObject(grp).getBoundingSphere(new THREE.Sphere());
+      
+      // 【核心修改】障碍物外层包裹红色的危险警告线框，确保在暗处极其明显
+      const wireMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, transparent: true, opacity: 0.4 });
+      const wireBox = new THREE.Mesh(new THREE.SphereGeometry(sphere.radius * 1.0, 6, 6), wireMat);
+      grp.add(wireBox);
+
       const yOffset = sphere.radius * 0.8;
       grp.position.set(center.x + localX, yOffset, spawnZ); scene.add(grp);
       obstacles.push({ mesh: grp, localX, localY: yOffset, radius: Math.max(0.6, sphere.radius * 0.8), spin: { x: rnd(-0.9,0.9), y: rnd(-0.9,0.9), z: rnd(-0.6,0.6) } });
@@ -459,17 +467,16 @@
   
   function spawnOrb(zPos){ 
       const g = new THREE.Group(); 
-      // 包含发光核心、旋转的光环、大光晕
       g.add(new THREE.Mesh(orbGlowGeo, orbGlowMat)); 
       const core = new THREE.Mesh(orbCoreGeo, orbCoreMat); g.add(core); 
       const ring = new THREE.Mesh(orbRingGeo, orbRingMat); 
-      ring.rotation.x = Math.PI / 2; // 横放
+      ring.rotation.x = Math.PI / 2; 
       g.add(ring);
       
       const localX = rnd(-LIMIT_X * 0.85, LIMIT_X * 0.85); 
       const z = zPos || (-160 - Math.random()*22); 
       const center = getCurveOffset(z); 
-      g.position.set(center.x + localX, 1.0, z); // 稍微抬高
+      g.position.set(center.x + localX, 1.0, z); 
       scene.add(g); 
       orbs.push({ mesh:g, core: core, ring: ring, localX, localY: 1.0 }); 
   }
@@ -482,7 +489,6 @@
       else if (rand > 0.9) { type = 'nuke'; mesh = new THREE.Mesh(puNukeGeo, puNukeMat); } 
       
       const g = new THREE.Group(); g.add(mesh); 
-      // 加一层高对比度的网格护罩
       const wireMat = new THREE.MeshBasicMaterial({ color: mesh.material.color, wireframe: true, transparent: true, opacity: 0.8 });
       const wireSphere = new THREE.Mesh(new THREE.SphereGeometry(1.0, 8, 8), wireMat);
       g.add(wireSphere);
@@ -525,7 +531,7 @@
     let padX = null;
     if (Math.random() < 0.3) { padX = spawnBoostPad(spawnZ); }
     spawnObstacleWave(spawnZ, padX);
-    if (Math.random() < 0.5) spawnOrb(spawnZ); // 增加能量球生成概率
+    if (Math.random() < 0.5) spawnOrb(spawnZ); 
     if (Math.random() < 0.2) spawnPowerup(spawnZ); 
   }
   
@@ -585,7 +591,7 @@
         const z = o.mesh.position.z; 
         o.mesh.position.x = getCurveOffset(z).x + o.localX; 
         o.core.rotation.x += 2.2 * dt; o.core.rotation.y += 3.0 * dt; 
-        o.ring.rotation.z += 4.0 * dt; // 光环快速自转
+        o.ring.rotation.z += 4.0 * dt; 
         
         if (state.mode === 'playing' && z > -3 && z < 3 && Math.abs(o.localX - state.shipX) < 2.5){ state.score += 50; Sound.playSound('pickup'); scene.remove(o.mesh); orbs.splice(i, 1); continue; } 
         if (z > 20){ scene.remove(o.mesh); orbs.splice(i, 1); } 
@@ -597,7 +603,7 @@
         const z = o.mesh.position.z; 
         o.mesh.position.x = getCurveOffset(z).x + o.localX; 
         o.core.rotation.x += 2.0 * dt; o.core.rotation.y += 2.5 * dt; 
-        o.wire.rotation.x -= 1.5 * dt; o.wire.rotation.y += 1.5 * dt; // 外壳反向旋转
+        o.wire.rotation.x -= 1.5 * dt; o.wire.rotation.y += 1.5 * dt; 
         
         if (state.mode === 'playing' && z > -3 && z < 3 && Math.abs(o.localX - state.shipX) < 2.5){ 
             if (o.type === 'shield') { state.shieldTimer = 6.0; } 
