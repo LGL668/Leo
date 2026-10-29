@@ -18,8 +18,11 @@
        font-variant-numeric:tabular-nums; z-index: 5;}
   .hud-left { display: flex; flex-direction: column; gap: 8px; }
   .hud .label{font-size:11px;letter-spacing:4px;opacity:.45;margin-bottom:2px}
+  
   .hud .score{font-size:36px;font-weight:800;letter-spacing:2px;color:var(--cyan);
-              text-shadow:0 0 22px rgba(62,232,255,.75)}
+              text-shadow:0 0 22px rgba(62,232,255,.75); transition: transform 0.1s;}
+  .hud .score.pop { transform: scale(1.3); color: #fff; text-shadow:0 0 30px #fff; }
+
   .hud .right{text-align:right}
   .hud .right .val{font-size:18px;font-weight:700;color:#8fe3ff;opacity:.85}
 
@@ -71,12 +74,12 @@
   .bigscore{font-size:68px;font-weight:900;color:#fff;line-height:1;margin:16px 0 8px;
             text-shadow:0 0 44px rgba(62,232,255,.7)}
   .best{font-size:13px;letter-spacing:3px;opacity:.55;margin-bottom:30px}
-  #flash{position:fixed;inset:0;background:#ff2d6f;opacity:0;pointer-events:none;
-         transition:opacity .12s ease; z-index: 99;}
+  
+  #flash{position:fixed;inset:0;background:#ff2d6f;opacity:0;pointer-events:none;transition:opacity .1s ease; z-index: 99;}
+  #nukeFlash{position:fixed;inset:0;background:#b066ff;opacity:0;pointer-events:none;transition:opacity .3s ease; z-index: 98;}
 
-  /* 弹出提示文本 */
   .toast { position: fixed; left: 50%; top: 30%; transform: translate(-50%, -50%); font-size: 28px; font-weight: 900; letter-spacing: 5px; pointer-events: none; opacity: 0; z-index: 50; text-shadow: 0 0 30px currentColor; }
-  @keyframes toastAnim { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.8); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -70%) scale(0.9); } }
+  @keyframes toastAnim { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.8); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); } 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -70%) scale(0.9); } }
 
   .qr-placeholder {
     width: 110px; height: 110px; margin: 15px auto;
@@ -95,10 +98,10 @@
 </head>
 <body>
 
-<!-- 背景音乐标签，确保文件名与此处一致 -->
 <audio id="bgm" src="./bgm.mp3" loop preload="auto"></audio>
 
 <div id="game"></div>
+<div id="nukeFlash"></div>
 <div id="flash"></div>
 <div id="toast" class="toast"></div>
 
@@ -133,7 +136,7 @@
       <button class="btn" id="startBtn">开始飞行</button>
       <button class="btn btn-reward" id="rewardBtn">赞赏 ☕</button>
     </div>
-    <div class="version">v2.0</div>
+    <div class="version">v2.2</div>
   </div>
 </div>
 
@@ -184,6 +187,7 @@ const overScreen  = document.getElementById('overScreen');
 const finalScoreEl= document.getElementById('finalScore');
 const finalBestEl = document.getElementById('finalBest');
 const flashEl     = document.getElementById('flash');
+const nukeFlashEl = document.getElementById('nukeFlash');
 const rewardModal = document.getElementById('rewardModal');
 const toastEl     = document.getElementById('toast');
 const powerupHud  = document.getElementById('powerupHud');
@@ -197,7 +201,8 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x03050a);
 scene.fog = new THREE.FogExp2(0x03050a, 0.002);
 
-const camera = new THREE.PerspectiveCamera(80, innerWidth/innerHeight, 0.1, 8000);
+const BASE_FOV = 80;
+const camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth/innerHeight, 0.1, 8000);
 camera.position.set(0, 2.6, 8.6);
 
 const renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
@@ -209,6 +214,19 @@ scene.add(new THREE.AmbientLight(0x223344, 1.5));
 const keyLight = new THREE.DirectionalLight(0xbfe8ff, 2.0);
 keyLight.position.set(10, 20, 5); 
 scene.add(keyLight);
+
+/* 屏幕震动与顿帧系统 */
+let shakeTime = 0;
+let shakeIntensity = 0;
+let hitStopTime = 0;
+
+function triggerShake(time, intensity) {
+  shakeTime = Math.max(shakeTime, time);
+  shakeIntensity = Math.max(shakeIntensity, intensity);
+}
+function triggerHitStop(time) {
+  hitStopTime = Math.max(hitStopTime, time);
+}
 
 /* 音效引擎 */
 const Sound = {
@@ -222,7 +240,7 @@ const Sound = {
         this.ctx = new AC();
         this.master = this.ctx.createGain(); this.master.gain.value = 0.6;
         this.master.connect(this.ctx.destination);
-        this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = 0.8;
+        this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = 0.9;
         this.sfxGain.connect(this.master);
         this.delayNode = this.ctx.createDelay(); this.delayNode.delayTime.value = 0.45;
         const delayFeedback = this.ctx.createGain(); delayFeedback.gain.value = 0.35;
@@ -236,32 +254,22 @@ const Sound = {
   
   playBGM() {
     if (this.bgmAudio) {
-      this.bgmAudio.volume = 0.25; // 重置正常音量
-      this.bgmAudio.currentTime = 0; // 从头开始播放
-      let playPromise = this.bgmAudio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(e => {
-          alert("音乐播放失败！请检查文件是否存在。\n" + e.message);
-        });
-      }
+      this.bgmAudio.volume = 0.25;
+      this.bgmAudio.currentTime = 0;
+      this.bgmAudio.play().catch(e => console.log('BGM拦截'));
     }
   },
 
   stopBGM() {
-    if (this.bgmAudio) {
-      this.bgmAudio.pause(); // 彻底暂停
-    }
+    if (this.bgmAudio) this.bgmAudio.pause();
     if (this.fadeInterval) clearInterval(this.fadeInterval);
   },
 
   fadeBGM(targetVol, duration){
     if (!this.bgmAudio) return;
     if (this.fadeInterval) clearInterval(this.fadeInterval);
-    
-    const stepTime = 50; 
-    const steps = (duration * 1000) / stepTime;
+    const stepTime = 50; const steps = (duration * 1000) / stepTime;
     const volumeStep = (targetVol - this.bgmAudio.volume) / steps;
-
     this.fadeInterval = setInterval(() => {
       let newVol = this.bgmAudio.volume + volumeStep;
       if ((volumeStep > 0 && newVol >= targetVol) || (volumeStep < 0 && newVol <= targetVol)) {
@@ -299,17 +307,20 @@ const Sound = {
     const o = this.ctx.createOscillator(); o.type = 'sawtooth';
     o.frequency.setValueAtTime(1200, t); o.frequency.exponentialRampToValueAtTime(200, t+0.1);
     const g = this.ctx.createGain();
-    g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.1);
+    g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.1);
     o.connect(g); g.connect(this.sfxGain); o.start(t); o.stop(t+0.1);
   },
   explode(){
     if (!this.ready) return;
     const t = this.ctx.currentTime;
-    const o = this.ctx.createOscillator(); o.type = 'sawtooth';
-    o.frequency.setValueAtTime(100, t); o.frequency.exponentialRampToValueAtTime(20, t+0.5);
+    const o1 = this.ctx.createOscillator(); o1.type = 'sawtooth';
+    o1.frequency.setValueAtTime(150, t); o1.frequency.exponentialRampToValueAtTime(30, t+0.5);
+    const o2 = this.ctx.createOscillator(); o2.type = 'sine';
+    o2.frequency.setValueAtTime(60, t); o2.frequency.exponentialRampToValueAtTime(10, t+0.6);
     const g = this.ctx.createGain();
-    g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.6);
-    o.connect(g); g.connect(this.sfxGain); o.start(t); o.stop(t+0.6);
+    g.gain.setValueAtTime(0.6, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.6);
+    o1.connect(g); o2.connect(g); g.connect(this.sfxGain);
+    o1.start(t); o1.stop(t+0.6); o2.start(t); o2.stop(t+0.6);
   }
 };
 
@@ -435,7 +446,8 @@ const bulletGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.0, 4); bulletGeo.rota
 const bulletMat = new THREE.MeshBasicMaterial({ color: 0xff4d4d, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
 
 /* 游戏状态 */
-const LIMIT_X = 7.0, LIMIT_Y = 6.0, PLACE_R = 5.0;
+// 飞船的移动边界
+const LIMIT_X = 7.0, LIMIT_Y = 6.0;
 const obstacles = []; const orbs = []; const powerups = []; const bullets = [];
 let scrollSpeed = 0; let pointerActive = false; let pointerTargetX = 0, pointerTargetY = 0; let prevShipX = 0, prevShipY = 0;
 
@@ -455,20 +467,37 @@ function showToast(text, color) {
   toastEl.style.animation = 'toastAnim 1.5s ease forwards';
 }
 
+function popScore() {
+  scoreEl.classList.remove('pop');
+  void scoreEl.offsetWidth;
+  scoreEl.classList.add('pop');
+  setTimeout(() => scoreEl.classList.remove('pop'), 150);
+}
+
+// 【核心修复】将生成范围从“圆形”改为“贴合屏幕的矩形”，并稍微内缩防止边缘吃不到
+function getSpawnPos() {
+  const localX = rnd(-LIMIT_X * 0.9, LIMIT_X * 0.9);
+  const localY = rnd(-LIMIT_Y * 0.9, LIMIT_Y * 0.9);
+  return { localX, localY };
+}
+
 function spawnObstacle(){
-  const grp = makeDebris(); const a = Math.random() * Math.PI * 2; const r = Math.sqrt(Math.random()) * PLACE_R;
-  const localX = Math.cos(a)*r; const localY = Math.sin(a)*r; const z = -135 - Math.random()*25;
-  const center = getCurveOffset(z); grp.position.set(center.x + localX, center.y + localY, z);
+  const grp = makeDebris(); 
+  const pos = getSpawnPos();
+  const z = -135 - Math.random()*25;
+  const center = getCurveOffset(z); 
+  grp.position.set(center.x + pos.localX, center.y + pos.localY, z);
   grp.rotation.set(rnd(0,6.28), rnd(0,6.28), rnd(0,6.28)); scene.add(grp);
   const sphere = new THREE.Box3().setFromObject(grp).getBoundingSphere(new THREE.Sphere());
-  obstacles.push({ mesh: grp, localX, localY, radius: Math.max(0.5, sphere.radius * 0.8), spin: { x: rnd(-0.9,0.9), y: rnd(-0.9,0.9), z: rnd(-0.6,0.6) } });
+  obstacles.push({ mesh: grp, localX: pos.localX, localY: pos.localY, radius: Math.max(0.5, sphere.radius * 0.8), spin: { x: rnd(-0.9,0.9), y: rnd(-0.9,0.9), z: rnd(-0.6,0.6) } });
 }
 
 function spawnOrb(){
   const g = new THREE.Group(); g.add(new THREE.Mesh(orbGlowGeo, orbGlowMat)); const core = new THREE.Mesh(orbCoreGeo, orbCoreMat); g.add(core);
-  const a = Math.random() * Math.PI * 2; const r = Math.sqrt(Math.random()) * PLACE_R; const localX = Math.cos(a)*r; const localY = Math.sin(a)*r; const z = -130 - Math.random()*22;
-  const center = getCurveOffset(z); g.position.set(center.x + localX, center.y + localY, z);
-  scene.add(g); orbs.push({ mesh:g, core, localX, localY });
+  const pos = getSpawnPos();
+  const z = -130 - Math.random()*22;
+  const center = getCurveOffset(z); g.position.set(center.x + pos.localX, center.y + pos.localY, z);
+  scene.add(g); orbs.push({ mesh:g, core, localX: pos.localX, localY: pos.localY });
 }
 
 function spawnPowerup(){
@@ -483,9 +512,10 @@ function spawnPowerup(){
   const glowMat = new THREE.MeshBasicMaterial({ color: mesh.material.color, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false });
   g.add(new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 12), glowMat));
   
-  const a = Math.random() * Math.PI * 2; const r = Math.sqrt(Math.random()) * PLACE_R; const localX = Math.cos(a)*r; const localY = Math.sin(a)*r; const z = -130 - Math.random()*22;
-  const center = getCurveOffset(z); g.position.set(center.x + localX, center.y + localY, z);
-  scene.add(g); powerups.push({ mesh:g, core: mesh, type, localX, localY });
+  const pos = getSpawnPos();
+  const z = -130 - Math.random()*22;
+  const center = getCurveOffset(z); g.position.set(center.x + pos.localX, center.y + pos.localY, z);
+  scene.add(g); powerups.push({ mesh:g, core: mesh, type, localX: pos.localX, localY: pos.localY });
 }
 
 function spawnWave(){
@@ -543,7 +573,6 @@ function updateWorld(dt){
     if (state.weaponTimer <= 0) { puWeapon.style.display = 'none'; }
     else { puWeapon.style.display = 'flex'; powerupHud.classList.add('active'); }
     
-    // 自动开火
     if (Math.floor(state.weaponTimer * 10) % 2 === 0) {
       if (!state.lastShoot || time - state.lastShoot > 0.15) {
         state.lastShoot = time;
@@ -564,7 +593,7 @@ function updateWorld(dt){
     powerupHud.classList.remove('active');
   }
 
-  // 子弹更新
+  // 子弹更新 (判定优化：只要Z轴在附近，就检测)
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.mesh.position.z -= 150 * dt; 
@@ -578,12 +607,15 @@ function updateWorld(dt){
     
     for (let j = obstacles.length - 1; j >= 0; j--) {
       const o = obstacles[j];
-      if (Math.abs(o.mesh.position.z - z) < 2.0) {
-        if (Math.hypot(o.localX - b.localX, o.localY - b.localY) < o.radius + 0.5) {
+      // 【修复】放宽判定范围到 ±3.0，防止高速穿越
+      if (Math.abs(o.mesh.position.z - z) < 3.0) {
+        if (Math.hypot(o.localX - b.localX, o.localY - b.localY) < o.radius + 0.6) {
           createExplosion(o.mesh.position);
           scene.remove(o.mesh); obstacles.splice(j, 1);
           scene.remove(b.mesh); bullets.splice(i, 1);
           Sound.explode();
+          triggerShake(0.15, 0.3); 
+          triggerHitStop(0.03);     
           break;
         }
       }
@@ -599,12 +631,14 @@ function updateWorld(dt){
     o.mesh.position.copy(new THREE.Vector3(center.x, center.y, z).add(right.clone().multiplyScalar(o.localX)).add(realUp.clone().multiplyScalar(o.localY)));
     o.mesh.rotation.x += o.spin.x * dt; o.mesh.rotation.y += o.spin.y * dt; o.mesh.rotation.z += o.spin.z * dt;
 
-    if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
+    // 【修复】放宽 Z 轴碰撞检测窗口
+    if (state.mode === 'playing' && z > -2.0 && z < 2.0){
       if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < o.radius + 0.45) {
         if (state.shieldTimer > 0) {
           createExplosion(o.mesh.position);
           scene.remove(o.mesh); obstacles.splice(i, 1);
           Sound.explode();
+          triggerShake(0.2, 0.5); 
         } else {
           crash();
         }
@@ -622,9 +656,12 @@ function updateWorld(dt){
     o.mesh.position.copy(new THREE.Vector3(center.x, center.y, z).add(right.clone().multiplyScalar(o.localX)).add(realUp.clone().multiplyScalar(o.localY)));
     o.core.rotation.x += 2.2 * dt; o.core.rotation.y += 3.0 * dt;
 
-    if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
-      if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.6){
-        state.score += 50; Sound.pickup(); scene.remove(o.mesh); orbs.splice(i, 1); continue;
+    // 【修复】只要靠近飞船所在平面就判定，且拾取半径更大 (1.8)
+    if (state.mode === 'playing' && z > -2.5 && z < 2.5){
+      if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.8){
+        state.score += 50; Sound.pickup(); scene.remove(o.mesh); orbs.splice(i, 1); 
+        popScore();
+        continue;
       }
     }
     if (o.mesh.position.z > 16){ scene.remove(o.mesh); orbs.splice(i, 1); }
@@ -639,8 +676,9 @@ function updateWorld(dt){
     o.mesh.position.copy(new THREE.Vector3(center.x, center.y, z).add(right.clone().multiplyScalar(o.localX)).add(realUp.clone().multiplyScalar(o.localY)));
     o.core.rotation.x += 2.0 * dt; o.core.rotation.y += 2.5 * dt;
 
-    if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
-      if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.6){
+    // 【修复】放宽判定
+    if (state.mode === 'playing' && z > -2.5 && z < 2.5){
+      if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.8){
         if (o.type === 'shield') {
           state.shieldTimer = 5.0;
           showToast('护盾激活', '#4da6ff');
@@ -652,6 +690,12 @@ function updateWorld(dt){
         } else if (o.type === 'nuke') {
           showToast('全屏消除！', '#b066ff');
           Sound.powerup('nuke');
+          
+          triggerShake(0.8, 1.5); 
+          triggerHitStop(0.1);
+          nukeFlashEl.style.opacity = '0.8';
+          setTimeout(() => nukeFlashEl.style.opacity = '0', 100);
+
           for (let j = obstacles.length - 1; j >= 0; j--) {
             createExplosion(obstacles[j].mesh.position);
             scene.remove(obstacles[j].mesh);
@@ -674,7 +718,20 @@ function updateCamera(dt){
   const camOffset = T.clone().multiplyScalar(-16); 
   const camUpOffset = realUp.clone().multiplyScalar(2.0);
   
-  camera.position.copy(new THREE.Vector3(offset0.x, offset0.y, 0).add(camOffset).add(camUpOffset));
+  let camPos = new THREE.Vector3(offset0.x, offset0.y, 0).add(camOffset).add(camUpOffset);
+  
+  let targetFov = BASE_FOV + (state.speed / state.maxSpeed) * 15;
+  camera.fov += (targetFov - camera.fov) * 0.1;
+  camera.updateProjectionMatrix();
+
+  if (shakeTime > 0) {
+    shakeTime -= dt;
+    camPos.x += (Math.random() - 0.5) * shakeIntensity;
+    camPos.y += (Math.random() - 0.5) * shakeIntensity;
+    shakeIntensity *= 0.9;
+  }
+
+  camera.position.copy(camPos);
   camera.up.copy(realUp); camera.lookAt(new THREE.Vector3(offset0.x, offset0.y, 0).add(T.clone().multiplyScalar(30)));
 }
 
@@ -714,11 +771,13 @@ function resetScene(){
   state.shipX = 0; state.shipY = 0; prevShipX = 0; prevShipY = 0; pointerTargetX = 0; pointerTargetY = 0; pointerActive = false;
   state.shieldTimer = 0; state.weaponTimer = 0; shieldMesh.visible = false;
   puShield.style.display = 'none'; puWeapon.style.display = 'none'; powerupHud.classList.remove('active');
+  
+  camera.fov = BASE_FOV; camera.updateProjectionMatrix();
 }
 
 function startGame(){
   Sound.init(); 
-  Sound.playBGM(); // 开始并重置音乐
+  Sound.playBGM(); 
   
   state.mode = 'playing'; state.elapsed = 0; state.speed = state.baseSpeed; state.traveled = 0; state.nextSpawn = 45; state.score = 0;
   resetScene();
@@ -734,11 +793,14 @@ function crash(){
   if (state.mode !== 'playing') return;
   state.mode = 'over'; shipPivot.visible = false;
   
-  // 【核心修改】死亡时彻底停止音乐
   Sound.stopBGM(); 
   
+  triggerShake(1.5, 3.0); 
+  triggerHitStop(0.15);    
+  
   createExplosion(shipPivot.position); Sound.explode();
-  flashEl.style.opacity = '0.9'; setTimeout(() => { flashEl.style.opacity = '0'; }, 90);
+  flashEl.style.opacity = '0.9'; setTimeout(() => { flashEl.style.opacity = '0'; }, 150);
+  
   const finalScore = Math.floor(state.score);
   if (finalScore > state.best){ state.best = finalScore; localStorage.setItem('starrunner_best', String(state.best)); }
   setTimeout(() => {
@@ -769,6 +831,11 @@ rewardModal.addEventListener('click', (e) => { if (e.target === rewardModal) clo
 /* 主循环 */
 const clock = new THREE.Clock();
 function update(dt){
+  if (hitStopTime > 0) {
+    hitStopTime -= dt;
+    return; 
+  }
+
   const time = performance.now() * 0.001;
   if (state.mode === 'playing'){
     state.elapsed += dt;
@@ -785,6 +852,7 @@ function update(dt){
     scrollSpeed *= Math.exp(-4 * dt); if (scrollSpeed < 0.4) scrollSpeed = 0;
   }
   updateWorld(dt); updateParticles(dt);
+  
   if (state.mode !== 'over') { updateCamera(dt); } else { camera.position.z += dt * 2; }
 }
 
