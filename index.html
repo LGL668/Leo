@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>极速狂飙 · 赛博赛道</title>
+<title>极速狂飙 · 赛博街道</title>
 <style>
   :root{ --cyan:#3ee8ff; --pink:#ff3d8b; --mint:#5cffc0; --purple:#b066ff; --red:#ff4d4d; --blue:#4da6ff; }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -37,19 +37,16 @@
   .pu-icon.weapon { color: var(--red); border: 1px solid rgba(255,77,77,.3); background: rgba(255,77,77,.1); text-shadow: 0 0 10px var(--red); }
   .pu-icon.boost { color: #ffea00; border: 1px solid rgba(255,234,0,.3); background: rgba(255,234,0,.1); text-shadow: 0 0 10px #ffea00; }
 
-  /* 移除毛玻璃特效，改用纯色半透明，防止 iOS 点击穿透 Bug */
   .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:rgba(2,3,10,0.85);
-    transition:opacity .35s ease; z-index: 10;}
+    background:rgba(2,3,10,0.85); transition:opacity .35s ease; z-index: 10;}
   .overlay.hidden{opacity:0;pointer-events:none}
   
-  /* 给 card 设定最高的层级 */
   .card{text-align:center;padding:40px 46px;max-width:480px;position:relative; z-index: 1000; pointer-events: auto;}
 
   .title{font-size:46px;font-weight:900;letter-spacing:10px;font-style:italic;
     background:linear-gradient(90deg,#ff3d8b,#3ee8ff);
     -webkit-background-clip:text;background-clip:text;color:transparent;
-    text-shadow: 0 0 20px rgba(255,61,139,.4);} /* 换成兼容性更好的 text-shadow */
+    text-shadow: 0 0 20px rgba(255,61,139,.4);}
   .subtitle{font-size:11px;letter-spacing:9px;opacity:.45;margin-top:8px;text-transform:uppercase}
 
   .tips{margin:30px 0 34px;font-size:14px;line-height:2.1;opacity:.75}
@@ -59,16 +56,15 @@
 
   .btn-group{display:flex;gap:15px;justify-content:center;margin-top:10px;flex-wrap:wrap;}
   
-  /* 按钮层级提到最高，绝对不遮挡 */
+  /* 按钮绝对安全层级 */
   .btn{pointer-events:auto;cursor:pointer;border:none;border-radius:999px;
     padding:16px 40px;font-size:16px;font-weight:800;letter-spacing:3px;
     color:#001018;background:linear-gradient(135deg,#ff3d8b,#3ee8ff);
     box-shadow:0 0 36px rgba(255,61,139,.5);
-    transition:transform .18s,box-shadow .18s,background .18s;font-family:inherit; position: relative; z-index: 1001;}
+    transition:transform .18s,box-shadow .18s,background .18s;font-family:inherit; position: relative; z-index: 9999;}
   .btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 52px rgba(62,232,255,.85)}
   .btn:active{transform:scale(.96)}
 
-  /* 防止按钮内的元素干扰点击 */
   .btn * { pointer-events: none; }
 
   .btn-secondary{background:transparent;border:1px solid rgba(62,232,255,.35);color:#8fe3ff;box-shadow:none;}
@@ -135,7 +131,7 @@
 <div class="overlay" id="startScreen">
   <div class="card">
     <div class="title">极速狂飙</div>
-    <div class="subtitle">Cyberpunk Highway</div>
+    <div class="subtitle">Cyberpunk Street</div>
     <div class="tips">
       移动<b>鼠标</b> 或 <span class="key">A</span><span class="key">D</span> <span class="key">←→</span> 左右漂移<br>
       躲避<b style="color:#ff3d8b">路障</b>，收集<b style="color:#5cffc0">能量球</b>与<b style="color:#b066ff">强化道具</b><br>
@@ -145,7 +141,7 @@
       <button class="btn" id="startBtn">点火起步</button>
       <button class="btn btn-reward" id="rewardBtn">赞赏 ☕</button>
     </div>
-    <div class="version">v3.5 点击修复版</div>
+    <div class="version">v3.7 稳定版</div>
   </div>
 </div>
 
@@ -209,8 +205,8 @@ const speedHud    = document.getElementById('speedHud');
 
 /* 渲染场景 */
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a1224);
-scene.fog = new THREE.FogExp2(0x0a1224, 0.0035);
+scene.background = new THREE.Color(0x0a0512); 
+scene.fog = new THREE.FogExp2(0x0a0512, 0.004);
 
 const BASE_FOV = 75;
 const camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth/innerHeight, 0.1, 8000);
@@ -220,13 +216,10 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 container.appendChild(renderer.domElement);
 
-scene.add(new THREE.AmbientLight(0xffffff, 2.5)); 
-const keyLight = new THREE.DirectionalLight(0xffffff, 3.0);
+scene.add(new THREE.AmbientLight(0xffffff, 1.8)); 
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
 keyLight.position.set(10, 20, 5); 
 scene.add(keyLight);
-const fillLight = new THREE.DirectionalLight(0x3ee8ff, 2.0);
-fillLight.position.set(-10, 0, 0);
-scene.add(fillLight);
 
 let shakeTime = 0;
 let shakeIntensity = 0;
@@ -259,20 +252,24 @@ const Sound = {
         }
       }
       if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-    } catch(e) {}
+    } catch(e) { console.log(e); }
   },
   
   playBGM() {
-    if (this.bgmAudio) {
-      this.bgmAudio.volume = 0.25;
-      this.bgmAudio.currentTime = 0;
-      this.bgmAudio.play().catch(e => console.log('BGM拦截'));
-    }
+    try {
+      if (this.bgmAudio) {
+        this.bgmAudio.volume = 0.25;
+        this.bgmAudio.currentTime = 0;
+        this.bgmAudio.play().catch(e => console.log('BGM拦截'));
+      }
+    } catch(e){}
   },
 
   stopBGM() {
-    if (this.bgmAudio) this.bgmAudio.pause();
-    if (this.fadeInterval) clearInterval(this.fadeInterval);
+    try {
+      if (this.bgmAudio) this.bgmAudio.pause();
+      if (this.fadeInterval) clearInterval(this.fadeInterval);
+    } catch(e){}
   },
 
   fadeBGM(targetVol, duration){
@@ -364,6 +361,69 @@ function getTangent(z) {
     return new THREE.Vector3(dx, 0, -1).normalize();
 }
 
+/* 街道场景搭建 */
+const roadGeo = new THREE.PlaneGeometry(22, 3000);
+roadGeo.rotateX(-Math.PI / 2);
+const roadMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9, metalness: 0.2 });
+const road = new THREE.Mesh(roadGeo, roadMat);
+road.position.set(0, -0.1, -1000);
+scene.add(road);
+
+const laneLines = [];
+const lineGeo = new THREE.PlaneGeometry(0.4, 4);
+lineGeo.rotateX(-Math.PI / 2);
+const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
+for(let i=0; i<60; i++) {
+    const line = new THREE.Mesh(lineGeo, lineMat);
+    scene.add(line);
+    laneLines.push({ mesh: line, z: -i * 15 });
+}
+
+const sideObj = [];
+for(let i=0; i<60; i++) {
+    const guardGeo = new THREE.BoxGeometry(0.2, 0.6, 10);
+    const guardMatL = new THREE.MeshBasicMaterial({ color: 0x3ee8ff });
+    const guardMatR = new THREE.MeshBasicMaterial({ color: 0xff3d8b });
+    const gL = new THREE.Mesh(guardGeo, guardMatL);
+    const gR = new THREE.Mesh(guardGeo, guardMatR);
+    scene.add(gL); scene.add(gR);
+
+    const poleGeo = new THREE.BoxGeometry(0.3, 8, 0.3);
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const bulbGeo = new THREE.BoxGeometry(0.8, 0.4, 2);
+    const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffeeaa });
+    
+    const pL = new THREE.Mesh(poleGeo, poleMat);
+    const pR = new THREE.Mesh(poleGeo, poleMat);
+    const bL = new THREE.Mesh(bulbGeo, bulbMat);
+    const bR = new THREE.Mesh(bulbGeo, bulbMat);
+    
+    bL.position.set(-0.8, 4, 0);
+    bR.position.set(0.8, 4, 0);
+    pL.add(bL); pR.add(bR);
+    scene.add(pL); scene.add(pR);
+
+    sideObj.push({ gL, gR, pL, pR, z: -i * 15 });
+}
+
+const buildings = [];
+const bMats = [
+  new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x003366, emissiveIntensity: 0.8 }),
+  new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x660033, emissiveIntensity: 0.8 }),
+  new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x330066, emissiveIntensity: 0.8 })
+];
+for(let i=0; i<40; i++) {
+    const isLeft = i % 2 === 0;
+    const w = rnd(6, 15);
+    const h = rnd(15, 60);
+    const d = rnd(10, 30);
+    const bGeo = new THREE.BoxGeometry(w, h, d);
+    const bMat = bMats[Math.floor(Math.random()*bMats.length)];
+    const bMesh = new THREE.Mesh(bGeo, bMat);
+    scene.add(bMesh);
+    buildings.push({ mesh: bMesh, z: -i * 30, xOff: isLeft ? rnd(-30, -18) : rnd(18, 30) });
+}
+
 /* 赛车模型 */
 function buildCar(){
   const g = new THREE.Group();
@@ -420,17 +480,6 @@ const shieldMesh = new THREE.Mesh(
 );
 shieldMesh.visible = false;
 car.add(shieldMesh);
-
-const edges = [];
-const edgeGeo = new THREE.BoxGeometry(0.5, 0.2, 15);
-const edgeMatL = new THREE.MeshBasicMaterial({ color: 0x3ee8ff });
-const edgeMatR = new THREE.MeshBasicMaterial({ color: 0xff3d8b });
-for (let i = 0; i < 60; i++) {
-  const meshL = new THREE.Mesh(edgeGeo, edgeMatL);
-  const meshR = new THREE.Mesh(edgeGeo, edgeMatR);
-  scene.add(meshL); scene.add(meshR);
-  edges.push({ meshL, meshR, z: -i * 15 });
-}
 
 /* 障碍物工厂 */
 const DEBRIS_GEOS = [
@@ -489,7 +538,8 @@ let pointerActive = false; let pointerTargetX = 0;
 
 const state = {
   mode: 'ready', speed: 70, baseSpeed: 70, maxSpeed: 160, elapsed: 0, traveled: 0, nextSpawn: 0, score: 0,
-  shipX: 0, shipY: 0.5, best: +(localStorage.getItem('racerunner_best') || 0),
+  shipX: 0, shipY: 0.5, 
+  best: (() => { try { return +(localStorage.getItem('racerunner_best') || 0); } catch(e) { return 0; } })(),
   shieldTimer: 0, weaponTimer: 0, boostTimer: 0
 };
 
@@ -640,13 +690,28 @@ function updateWorld(dt){
   const dz = currentSpeed * dt;
   const time = performance.now() * 0.001;
 
-  edges.forEach(e => {
-    e.z += dz;
-    if (e.z > 20) e.z -= 900; 
-    const z = e.z;
-    const center = getCurveOffset(z);
-    e.meshL.position.set(center.x - 9, 0.1, z);
-    e.meshR.position.set(center.x + 9, 0.1, z);
+  laneLines.forEach(l => {
+      l.z += dz;
+      if(l.z > 20) l.z -= 900;
+      const center = getCurveOffset(l.z);
+      l.mesh.position.set(center.x, 0, l.z);
+  });
+
+  sideObj.forEach(s => {
+      s.z += dz;
+      if(s.z > 20) s.z -= 900;
+      const center = getCurveOffset(s.z);
+      s.gL.position.set(center.x - 11, 0, s.z);
+      s.gR.position.set(center.x + 11, 0, s.z);
+      s.pL.position.set(center.x - 12, 4, s.z);
+      s.pR.position.set(center.x + 12, 4, s.z);
+  });
+
+  buildings.forEach(b => {
+      b.z += dz;
+      if(b.z > 40) b.z -= 1200; 
+      const center = getCurveOffset(b.z);
+      b.mesh.position.set(center.x + b.xOff, 0, b.z);
   });
 
   speedHud.innerHTML = `${Math.floor(currentSpeed * 3.6)} <span class="unit">km/h</span>`;
@@ -864,10 +929,9 @@ function resetScene(){
   speedHud.classList.remove('active');
 }
 
-// 暴露到全局，确保不会因为模块化作用域导致点击失效
+// 将函数直接挂载到 window，确保被外部点击调用
 window.startGame = function() {
   try { Sound.init(); Sound.playBGM(); } catch(e) {}
-  
   state.mode = 'playing'; state.elapsed = 0; state.speed = state.baseSpeed; state.traveled = 0; state.nextSpawn = 45; state.score = 0;
   resetScene();
   scoreEl.textContent = '0'; bestEl.textContent = state.best;
@@ -883,14 +947,12 @@ function crash(){
   state.mode = 'over'; carPivot.visible = false;
   
   try{Sound.stopBGM();}catch(e){}
-  triggerShake(1.5, 3.0); 
-  triggerHitStop(0.15);    
-  
+  triggerShake(1.5, 3.0); triggerHitStop(0.15);    
   createExplosion(carPivot.position); try{Sound.explode();}catch(e){}
   flashEl.style.opacity = '0.9'; setTimeout(() => { flashEl.style.opacity = '0'; }, 150);
   
   const finalScore = Math.floor(state.score);
-  if (finalScore > state.best){ state.best = finalScore; localStorage.setItem('racerunner_best', String(state.best)); }
+  if (finalScore > state.best){ state.best = finalScore; try{localStorage.setItem('racerunner_best', String(state.best));}catch(e){} }
   setTimeout(() => {
     finalScoreEl.textContent = finalScore; finalBestEl.textContent = '最高分 ' + state.best;
     overScreen.classList.remove('hidden'); hudEl.style.display = 'none';
@@ -909,18 +971,9 @@ function spawnHearts() {
 function showReward() { try{Sound.init();}catch(e){} if (state.mode !== 'playing') try{Sound.fadeBGM(0.1, 0.5);}catch(e){} rewardModal.classList.remove('hidden'); spawnHearts(); }
 function closeReward() { rewardModal.classList.add('hidden'); if (state.mode !== 'playing') try{Sound.fadeBGM(0.25, 0.5);}catch(e){} }
 
-document.getElementById('rewardBtn').addEventListener('click', showReward);
-document.getElementById('rewardBtn2').addEventListener('click', showReward);
-document.getElementById('closeRewardBtn').addEventListener('click', closeReward);
-document.getElementById('qrContainer').addEventListener('click', closeReward);
-rewardModal.addEventListener('click', (e) => { if (e.target === rewardModal) closeReward(); });
-
 const clock = new THREE.Clock();
 function update(dt){
-  if (hitStopTime > 0) {
-    hitStopTime -= dt;
-    return; 
-  }
+  if (hitStopTime > 0) { hitStopTime -= dt; return; }
 
   const time = performance.now() * 0.001;
   if (state.mode === 'playing'){
@@ -929,7 +982,6 @@ function update(dt){
     state.speed = state.baseSpeed + (state.maxSpeed - state.baseSpeed) * t;
     state.traveled += state.speed * dt; 
     updateShip(dt); spawnLogic();
-    
     state.score += state.speed * dt * 0.35; 
     scoreEl.textContent = Math.floor(state.score);
   } else if (state.mode === 'ready'){
@@ -939,7 +991,6 @@ function update(dt){
   }
   
   updateWorld(dt); updateParticles(dt);
-  
   if (state.mode !== 'over') { updateCamera(dt); } else { camera.position.z += dt * 2; }
 }
 
@@ -982,15 +1033,24 @@ addEventListener('touchmove', e => {
 }, { passive:false });
 addEventListener('touchend', e => { for (const t of e.changedTouches){ if (t.identifier === touchId) touchId = null; } }, { passive:true });
 
-// 使用全局函数直接绑定，防止事件穿透/遮挡导致无法点击
-document.getElementById('startBtn').onclick = window.startGame;
-document.getElementById('retryBtn').onclick = window.startGame;
-document.getElementById('exitBtn').onclick = window.exitToMenu;
+// 在 DOM 加载完成后执行绑定，防止报错导致后续中断
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('startBtn').addEventListener('click', window.startGame);
+  document.getElementById('retryBtn').addEventListener('click', window.startGame);
+  document.getElementById('exitBtn').addEventListener('click', window.exitToMenu);
+  
+  document.getElementById('rewardBtn').addEventListener('click', showReward);
+  document.getElementById('rewardBtn2').addEventListener('click', showReward);
+  document.getElementById('closeRewardBtn').addEventListener('click', closeReward);
+  document.getElementById('qrContainer').addEventListener('click', closeReward);
+  document.getElementById('rewardModal').addEventListener('click', (e) => { if (e.target === document.getElementById('rewardModal')) closeReward(); });
+});
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
 });
 
+// 启动主循环
 bestEl.textContent = state.best;
 animate();
 </script>
