@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>星际穿梭 · Star Runner</title>
+<title>星际穿梭 · 巨行星低空</title>
 <style>
   :root{ --cyan:#3ee8ff; --pink:#ff3d8b; --mint:#5cffc0; }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -15,7 +15,7 @@
 
   .hud{position:fixed;inset:0;pointer-events:none;padding:22px 26px;
        display:flex;justify-content:space-between;align-items:flex-start;
-       font-variant-numeric:tabular-nums}
+       font-variant-numeric:tabular-nums; z-index: 5;}
   .hud .label{font-size:11px;letter-spacing:4px;opacity:.45;margin-bottom:2px}
   .hud .score{font-size:36px;font-weight:800;letter-spacing:2px;color:var(--cyan);
               text-shadow:0 0 22px rgba(62,232,255,.75)}
@@ -25,7 +25,7 @@
   .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
     background:radial-gradient(circle at 50% 45%,rgba(10,30,60,.55),rgba(2,3,10,.93));
     backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-    transition:opacity .35s ease}
+    transition:opacity .35s ease; z-index: 10;}
   .overlay.hidden{opacity:0;pointer-events:none}
   .card{text-align:center;padding:40px 46px;max-width:480px}
 
@@ -40,19 +40,24 @@
   .key{display:inline-block;padding:1px 9px;border:1px solid rgba(255,255,255,.22);
        border-radius:5px;font-size:12px;margin:0 2px;opacity:.9}
 
+  .btn-group{display:flex;gap:15px;justify-content:center;margin-top:10px;}
+  
   .btn{pointer-events:auto;cursor:pointer;border:none;border-radius:999px;
-    padding:16px 56px;font-size:16px;font-weight:800;letter-spacing:5px;
+    padding:16px 40px;font-size:16px;font-weight:800;letter-spacing:3px;
     color:#001018;background:linear-gradient(135deg,#5cffc0,#3ee8ff);
     box-shadow:0 0 36px rgba(62,232,255,.5);
-    transition:transform .18s,box-shadow .18s;font-family:inherit}
+    transition:transform .18s,box-shadow .18s,background .18s;font-family:inherit}
   .btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 52px rgba(62,232,255,.85)}
   .btn:active{transform:scale(.96)}
+
+  .btn-secondary{background:transparent;border:1px solid rgba(62,232,255,.35);color:#8fe3ff;box-shadow:none;}
+  .btn-secondary:hover{background:rgba(62,232,255,.1);box-shadow:0 0 25px rgba(62,232,255,.2);}
 
   .bigscore{font-size:68px;font-weight:900;color:#fff;line-height:1;margin:16px 0 8px;
             text-shadow:0 0 44px rgba(62,232,255,.7)}
   .best{font-size:13px;letter-spacing:3px;opacity:.55;margin-bottom:30px}
   #flash{position:fixed;inset:0;background:#ff2d6f;opacity:0;pointer-events:none;
-         transition:opacity .12s ease}
+         transition:opacity .12s ease; z-index: 99;}
 </style>
 </head>
 <body>
@@ -74,12 +79,12 @@
 <div class="overlay" id="startScreen">
   <div class="card">
     <div class="title">星际穿梭</div>
-    <div class="subtitle">Star Runner</div>
+    <div class="subtitle">Giant Planet Low Orbit</div>
     <div class="tips">
       移动<b>鼠标</b> 或 <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>
       <span class="key">↑↓←→</span> 操控飞船<br>
-      躲避<b style="color:#ff3d8b">红色障碍</b>，收集<b style="color:#5cffc0">绿色能量球</b><br>
-      速度会越来越快，飞得越久分数越高
+      躲避<b style="color:#ff3d8b">太空垃圾</b>，收集<b style="color:#5cffc0">绿色能量球</b><br>
+      跟随流星轨迹，体验穿梭快感
     </div>
     <button class="btn" id="startBtn">开始飞行</button>
   </div>
@@ -90,7 +95,10 @@
     <div class="subtitle">飞行结束</div>
     <div class="bigscore" id="finalScore">0</div>
     <div class="best" id="finalBest">最高分 0</div>
-    <button class="btn" id="retryBtn">再来一次</button>
+    <div class="btn-group">
+      <button class="btn" id="retryBtn">再来一次</button>
+      <button class="btn btn-secondary" id="exitBtn">退出</button>
+    </div>
   </div>
 </div>
 
@@ -101,7 +109,7 @@
 <script type="module">
 import * as THREE from 'three';
 
-/* ═══════════ 基础工具 ═══════════ */
+/* ═══════════ 工具 ═══════════ */
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 const damp  = (k,dt)=>1-Math.exp(-k*dt);
 const rnd   = (a,b)=>a+Math.random()*(b-a);
@@ -117,36 +125,81 @@ const finalScoreEl= document.getElementById('finalScore');
 const finalBestEl = document.getElementById('finalBest');
 const flashEl     = document.getElementById('flash');
 
-/* ═══════════ 渲染器 ═══════════ */
+/* ═══════════ 渲染器 / 场景 ═══════════ */
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x02030a, 0.0105);
+scene.background = new THREE.Color(0x03050a);
+scene.fog = new THREE.FogExp2(0x03050a, 0.002);
 
-const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 420);
+const camera = new THREE.PerspectiveCamera(80, innerWidth/innerHeight, 0.1, 8000);
 camera.position.set(0, 2.6, 8.6);
-camera.lookAt(0, 0, -16);
 
 const renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.setClearColor(0x02030a, 1);
 container.appendChild(renderer.domElement);
 
 /* ═══════════ 灯光 ═══════════ */
-scene.add(new THREE.AmbientLight(0x6688cc, 1.7));
-
-const keyLight = new THREE.DirectionalLight(0xbfe8ff, 2.4);
-keyLight.position.set(4, 8, 6);
+scene.add(new THREE.AmbientLight(0x223344, 1.5)); 
+const keyLight = new THREE.DirectionalLight(0xbfe8ff, 2.0);
+keyLight.position.set(10, 20, 5); 
 scene.add(keyLight);
 
-const rimLight = new THREE.DirectionalLight(0xff4a9a, 1.3);
-rimLight.position.set(-6, -5, -9);
-scene.add(rimLight);
+/* ═══════════ 音效引擎 ═══════════ */
+const Sound = {
+  ctx:null, master:null, ready:false,
+  init(){
+    if (this.ctx){ if(this.ctx.state==='suspended') this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    this.master = this.ctx.createGain(); this.master.gain.value = 0.4;
+    this.master.connect(this.ctx.destination);
+    this.ready = true;
+  },
+  pickup(){
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(880, t); o.frequency.exponentialRampToValueAtTime(1760, t+0.1);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.2);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t+0.2);
+  },
+  explode(){
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(100, t); o.frequency.exponentialRampToValueAtTime(20, t+0.5);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.6);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t+0.6);
+  }
+};
+
+/* ═══════════ 赛道弯曲数学计算 ═══════════ */
+function getCurveOffset(z) {
+    const totalZ = state.traveled - z; 
+    const A1 = 80, F1 = 0.0012;
+    const A2 = 40, F2 = 0.0035;
+    const x = Math.sin(totalZ * F1) * A1 + Math.sin(totalZ * F2) * A2;
+    
+    const B1 = 60, G1 = 0.001;
+    const B2 = 25, G2 = 0.0025;
+    const y = Math.cos(totalZ * G1) * B1 + Math.cos(totalZ * G2) * B2;
+    
+    return new THREE.Vector3(x, y, 0);
+}
+
+function getTangent(z) {
+    const totalZ = state.traveled - z;
+    const dx = Math.cos(totalZ * 0.0012) * 80 * 0.0012 + Math.cos(totalZ * 0.0035) * 40 * 0.0035;
+    const dy = -Math.sin(totalZ * 0.001) * 60 * 0.001 - Math.sin(totalZ * 0.0025) * 25 * 0.0025;
+    return new THREE.Vector3(dx, dy, -1).normalize();
+}
 
 /* ═══════════ 飞船 ═══════════ */
 function buildShip(){
   const g = new THREE.Group();
-
-  // 机身（四棱锥，尖头朝 -Z）
   const bodyGeo = new THREE.ConeGeometry(0.46, 1.9, 4, 1);
   bodyGeo.rotateX(-Math.PI/2);
   bodyGeo.rotateZ(Math.PI/4);
@@ -156,7 +209,6 @@ function buildShip(){
   }));
   g.add(body);
 
-  // 座舱
   const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10),
     new THREE.MeshStandardMaterial({
       color:0x06202e, emissive:0x00e5ff, emissiveIntensity:1.8,
@@ -166,7 +218,6 @@ function buildShip(){
   cockpit.scale.set(1, 0.7, 1.6);
   g.add(cockpit);
 
-  // 机翼
   const wingMat = new THREE.MeshStandardMaterial({
     color:0x2f8fc4, emissive:0x0a3a55, metalness:1, roughness:0.3, flatShading:true
   });
@@ -181,14 +232,12 @@ function buildShip(){
     g.add(t);
   }
 
-  // 引擎核心
   const engine = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10),
     new THREE.MeshBasicMaterial({color:0x7dfbff}));
   engine.position.set(0, 0, 0.92);
   engine.scale.set(1, 1, 1.7);
   g.add(engine);
 
-  // 尾焰光晕
   const glow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12),
     new THREE.MeshBasicMaterial({
       color:0x2fd8ff, transparent:true, opacity:0.22,
@@ -198,7 +247,6 @@ function buildShip(){
   glow.scale.set(1, 1, 2.4);
   g.add(glow);
 
-  // 引擎灯
   const lamp = new THREE.PointLight(0x33e8ff, 34, 26, 2);
   lamp.position.set(0, 0, 1.6);
   g.add(lamp);
@@ -206,56 +254,275 @@ function buildShip(){
   return g;
 }
 
+const shipPivot = new THREE.Group();
+scene.add(shipPivot);
+
 const ship = buildShip();
-scene.add(ship);
+shipPivot.add(ship);
 
-/* ═══════════ 隧道环 ═══════════ */
-const RING_RADIUS = 6.6, RING_GAP = 13, RING_COUNT = 16;
-const ringGeo = new THREE.TorusGeometry(RING_RADIUS, 0.045, 6, 72);
-const rings = [];
-for (let i = 0; i < RING_COUNT; i++){
-  const mat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color().setHSL(0.52 + Math.random()*0.10, 0.9, 0.55),
-    transparent:true, opacity:0.42, depthWrite:false
-  });
-  const r = new THREE.Mesh(ringGeo, mat);
-  r.position.z = -i * RING_GAP;
-  scene.add(r);
-  rings.push(r);
-}
+/* ═══════════════════════════════════════════
+   超巨大行星背景
+   ═══════════════════════════════════════════ */
+const planetUniforms = {
+  time: { value: 0 },
+  lightDir: { value: new THREE.Vector3(0.4, 0.8, 0.2).normalize() }
+};
 
-/* ═══════════ 星空 ═══════════ */
-const STAR_COUNT = 1200, STAR_RANGE = 200;
+const planetVert = `
+  varying vec3 vPos;
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+  void main() {
+    vPos = position;
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    vViewPosition = -mvPosition.xyz;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const planetFrag = `
+  uniform float time;
+  uniform vec3 lightDir;
+  varying vec3 vPos;
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+
+  float hash(vec3 p) {
+      p = fract(p * 0.3183099 + 0.1);
+      p *= 17.0;
+      return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+  }
+  float noise(vec3 x) {
+      vec3 i = floor(x);
+      vec3 f = fract(x);
+      f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
+                     mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+                 mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+                     mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
+  }
+  float fbm(vec3 p) {
+      float f = 0.0;
+      float amp = 0.5;
+      for(int i = 0; i < 5; i++) {
+          f += amp * noise(p);
+          p *= 2.0;
+          amp *= 0.5;
+      }
+      return f;
+  }
+  float ridged(vec3 p) {
+      float n = noise(p);
+      n = abs(n * 2.0 - 1.0);
+      return 1.0 - n;
+  }
+
+  void main() {
+      vec3 p = normalize(vPos) * 3.5; 
+      
+      float h = fbm(p);
+      h += 0.35 * ridged(p * 2.0 + vec3(0.0, time * 0.01, 0.0));
+      
+      float eps = 0.02;
+      float hx = fbm(p + vec3(eps, 0.0, 0.0));
+      float hy = fbm(p + vec3(0.0, eps, 0.0));
+      vec3 tangent = normalize(cross(vNormal, vec3(0.0, 1.0, 0.0)));
+      vec3 bitangent = normalize(cross(vNormal, tangent));
+      vec3 normal = normalize(vNormal - tangent * (hx - h) / eps * 0.6 - bitangent * (hy - h) / eps * 0.6);
+
+      vec3 colOcean = vec3(0.02, 0.08, 0.15);
+      vec3 colLand = vec3(0.12, 0.24, 0.20);
+      vec3 colMountain = vec3(0.45, 0.40, 0.35);
+      vec3 colCloud = vec3(0.85, 0.92, 1.0);
+      
+      vec3 baseColor = mix(colOcean, colLand, smoothstep(0.3, 0.45, h));
+      baseColor = mix(baseColor, colMountain, smoothstep(0.55, 0.75, h));
+      
+      float cloudNoise = fbm(p * 1.2 + vec3(time * 0.015, 0.0, 0.0));
+      float cloud = smoothstep(0.45, 0.65, cloudNoise);
+      baseColor = mix(baseColor, colCloud, cloud * 0.8);
+      
+      vec3 viewDir = normalize(vViewPosition);
+      float diff = max(dot(normal, lightDir), 0.0);
+      float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 4.0);
+      vec3 atmosColor = vec3(0.2, 0.6, 1.0);
+      
+      vec3 finalColor = baseColor * (0.1 + diff * 0.9);
+      finalColor += atmosColor * fresnel * 1.5;
+      
+      gl_FragColor = vec4(finalColor, 1.0);
+  }
+`;
+
+const planetRadius = 4000;
+const planetGeo = new THREE.SphereGeometry(planetRadius, 256, 128);
+const planetMat = new THREE.ShaderMaterial({
+  vertexShader: planetVert,
+  fragmentShader: planetFrag,
+  uniforms: planetUniforms
+});
+const giantPlanet = new THREE.Mesh(planetGeo, planetMat);
+giantPlanet.position.set(0, -3600, -2000); 
+scene.add(giantPlanet);
+
+/* ═══════════════════════════════════════════
+   星云与星空
+   ═══════════════════════════════════════════ */
+const STAR_COUNT = 600, STAR_RANGE = 400;
 const starPos = new Float32Array(STAR_COUNT * 3);
 for (let i = 0; i < STAR_COUNT; i++){
   const a = Math.random() * Math.PI * 2;
-  const rad = 8 + Math.random() * 72;
+  const rad = 10 + Math.random() * 200;
   starPos[i*3]   = Math.cos(a) * rad;
-  starPos[i*3+1] = Math.sin(a) * rad;
+  starPos[i*3+1] = Math.sin(a) * rad + 50; 
   starPos[i*3+2] = -Math.random() * STAR_RANGE + 20;
 }
 const starGeo = new THREE.BufferGeometry();
 starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
 const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
-  color:0xaad4ff, size:0.55, sizeAttenuation:true,
-  transparent:true, opacity:0.85, depthWrite:false
+  color:0x88aaff, size:0.5, sizeAttenuation:true,
+  transparent:true, opacity:0.25, depthWrite:false
 }));
 scene.add(stars);
 
-/* ═══════════ 障碍物资源 ═══════════ */
-const OBSTACLE_GEOS = [
-  new THREE.IcosahedronGeometry(1, 0),
-  new THREE.OctahedronGeometry(1.05, 0),
-  new THREE.DodecahedronGeometry(0.95, 0),
-  new THREE.BoxGeometry(1.4, 1.4, 1.4),
-  new THREE.TetrahedronGeometry(1.2, 0)
-];
-const obstacleMat = new THREE.MeshStandardMaterial({
-  color:0xff2f74, emissive:0xb3003f, emissiveIntensity:1.3,
-  metalness:0.75, roughness:0.32, flatShading:true
+function createNebulaTexture() {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 1024;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 1024, 1024);
+  for(let i=0; i<15; i++){
+    const x = Math.random()*1024;
+    const y = Math.random()*1024;
+    const r = 200 + Math.random()*400;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    const hue = 200 + Math.random()*100;
+    grad.addColorStop(0, `hsla(${hue}, 80%, 50%, 0.1)`);
+    grad.addColorStop(1, `hsla(${hue}, 80%, 50%, 0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+  }
+  return new THREE.CanvasTexture(c);
+}
+const nebulaMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(8000, 4000),
+  new THREE.MeshBasicMaterial({
+    map: createNebulaTexture(), transparent: true, opacity: 0.4,
+    depthWrite: false, blending: THREE.AdditiveBlending, fog: false
+  })
+);
+nebulaMesh.position.set(0, 0, -3000);
+scene.add(nebulaMesh);
+
+/* ═══════════════════════════════════════════
+   动态流星轨迹（代替死板的光线）
+   ═══════════════════════════════════════════ */
+const METEOR_COUNT = 90;
+const meteors = [];
+
+// 创建细长的流星几何体
+const meteorGeo = new THREE.CylinderGeometry(0.04, 0.08, 6, 6);
+meteorGeo.rotateX(Math.PI / 2); // 让圆柱沿 Z 轴拉伸
+// 偏移几何体，让流星的前端更亮（通过改变顶点颜色或简单着色实现，这里直接整根发光）
+const meteorMat = new THREE.MeshBasicMaterial({
+  color: 0x3ee8ff,
+  transparent: true,
+  opacity: 0.75,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false
 });
 
-/* ═══════════ 能量球资源 ═══════════ */
+for (let i = 0; i < METEOR_COUNT; i++) {
+  const mesh = new THREE.Mesh(meteorGeo, meteorMat);
+  scene.add(mesh);
+  
+  // 随机分配在轨道两侧，形成两条虚线边界
+  const side = Math.random() > 0.5 ? 1 : -1;
+  const localX = side * rnd(3.5, 5.5);
+  const localY = rnd(-1, 1);
+  
+  meteors.push({
+    mesh,
+    localX,
+    localY,
+    z: -Math.random() * 350 - 20, // 分布在前后深空
+    speedScale: rnd(0.95, 1.05) // 微小速度差，产生层叠感
+  });
+}
+
+function updateMeteors(dt, dz) {
+  for (const m of meteors) {
+    // 流星随赛道同速向前移动
+    m.z += dz * m.speedScale;
+    
+    // 如果飞出屏幕，重置到遥远的后方
+    if (m.z > 16) {
+      m.z -= 380;
+      const side = Math.random() > 0.5 ? 1 : -1;
+      m.localX = side * rnd(3.5, 5.5);
+      m.localY = rnd(-1, 1);
+    }
+    
+    // 计算当前位置的赛道曲面和坐标系
+    const z = m.z;
+    const center = getCurveOffset(z);
+    const T = getTangent(z);
+    const up = new THREE.Vector3(0, 1, 0);
+    const right = new THREE.Vector3().crossVectors(T, up).normalize();
+    const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+    
+    // 将流星映射到赛道横截面上
+    const worldPos = new THREE.Vector3(center.x, center.y, z)
+        .add(right.clone().multiplyScalar(m.localX))
+        .add(realUp.clone().multiplyScalar(m.localY));
+    
+    m.mesh.position.copy(worldPos);
+    // 让流星指向飞行方向
+    m.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), T);
+  }
+}
+
+/* ═══════════ 障碍物与能量球工厂 ═══════════ */
+const DEBRIS_GEOS = [];
+for (let i = 0; i < 16; i++){
+  const r = Math.random();
+  if (r < 0.40) DEBRIS_GEOS.push(new THREE.BoxGeometry(rnd(0.40,1.20), rnd(0.10,0.45), rnd(0.40,1.10)));
+  else if (r < 0.65) DEBRIS_GEOS.push(new THREE.CylinderGeometry(rnd(0.10,0.30), rnd(0.10,0.30), rnd(0.45,1.30), 6));
+  else if (r < 0.85) DEBRIS_GEOS.push(new THREE.TorusGeometry(rnd(0.28,0.55), rnd(0.05,0.12), 5, 9));
+  else DEBRIS_GEOS.push(new THREE.IcosahedronGeometry(rnd(0.24,0.50), 0));
+}
+const DEBRIS_MATS = [];
+for (let i = 0; i < 7; i++){
+  const m = new THREE.MeshStandardMaterial({
+    color: new THREE.Color().setHSL(0.06 + Math.random()*0.12, 0.15 + Math.random()*0.25, 0.2 + Math.random()*0.3),
+    metalness: 0.92, roughness: 0.55, flatShading: true
+  });
+  if (i === 6){ m.emissive = new THREE.Color(0xff3322); m.emissiveIntensity = 1.0; }
+  DEBRIS_MATS.push(m);
+}
+const DEBRIS_SPARK = new THREE.MeshBasicMaterial({ color:0xffcc66 });
+
+function makeDebris(){
+  const grp = new THREE.Group();
+  const n = 3 + (Math.random() * 4 | 0);
+  for (let i = 0; i < n; i++){
+    const geo = DEBRIS_GEOS[(Math.random()*DEBRIS_GEOS.length)|0];
+    const mat = DEBRIS_MATS[(Math.random()*DEBRIS_MATS.length)|0];
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(rnd(-0.55,0.55), rnd(-0.55,0.55), rnd(-0.55,0.55));
+    m.rotation.set(rnd(0,6.28), rnd(0,6.28), rnd(0,6.28));
+    m.scale.setScalar(rnd(0.75, 1.15));
+    grp.add(m);
+  }
+  if (Math.random() < 0.45){
+    const spark = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), DEBRIS_SPARK);
+    spark.position.set(rnd(-0.4,0.4), rnd(-0.4,0.4), rnd(-0.4,0.4));
+    grp.add(spark);
+  }
+  grp.scale.setScalar(rnd(0.6, 1.05));
+  return grp;
+}
+
 const orbCoreGeo = new THREE.IcosahedronGeometry(0.34, 1);
 const orbCoreMat = new THREE.MeshBasicMaterial({color:0x8dffd6});
 const orbGlowGeo = new THREE.SphereGeometry(0.66, 16, 12);
@@ -264,9 +531,8 @@ const orbGlowMat = new THREE.MeshBasicMaterial({
   depthWrite:false, blending:THREE.AdditiveBlending
 });
 
-/* ═══════════ 游戏数据 ═══════════ */
+/* ═══════════ 游戏逻辑 ═══════════ */
 const LIMIT_X = 4.7, LIMIT_Y = 3.3, PLACE_R = 5.0;
-
 const obstacles = [];
 const orbs = [];
 
@@ -284,58 +550,34 @@ const state = {
   traveled: 0,
   nextSpawn: 0,
   score: 0,
+  shipX: 0,
+  shipY: 0,
   best: +(localStorage.getItem('starrunner_best') || 0)
 };
 
-/* ═══════════ 音效 ═══════════ */
-let audioCtx = null;
-function initAudio(){
-  if (!audioCtx){
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
-  }
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-}
-function sfxPickup(){
-  if (!audioCtx) return;
-  const t = audioCtx.currentTime;
-  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-  o.type = 'sine';
-  o.frequency.setValueAtTime(760, t);
-  o.frequency.exponentialRampToValueAtTime(1500, t + 0.10);
-  g.gain.setValueAtTime(0.13, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
-  o.connect(g); g.connect(audioCtx.destination);
-  o.start(t); o.stop(t + 0.14);
-}
-function sfxBoom(){
-  if (!audioCtx) return;
-  const t = audioCtx.currentTime;
-  const len = Math.floor(audioCtx.sampleRate * 0.6);
-  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 2.2);
-  const src = audioCtx.createBufferSource(); src.buffer = buf;
-  const flt = audioCtx.createBiquadFilter(); flt.type='lowpass'; flt.frequency.value = 850;
-  const g = audioCtx.createGain(); g.gain.value = 0.4;
-  src.connect(flt); flt.connect(g); g.connect(audioCtx.destination);
-  src.start(t);
-}
-
-/* ═══════════ 生成逻辑 ═══════════ */
 function spawnObstacle(){
-  const geo = OBSTACLE_GEOS[(Math.random()*OBSTACLE_GEOS.length)|0];
-  const mesh = new THREE.Mesh(geo, obstacleMat);
+  const grp = makeDebris();
   const a = Math.random() * Math.PI * 2;
   const r = Math.sqrt(Math.random()) * PLACE_R;
-  const s = rnd(0.55, 1.05);
-  mesh.position.set(Math.cos(a)*r, Math.sin(a)*r, -135 - Math.random()*25);
-  mesh.scale.setScalar(s);
-  mesh.rotation.set(Math.random()*6.28, Math.random()*6.28, Math.random()*6.28);
-  scene.add(mesh);
+  
+  const localX = Math.cos(a)*r;
+  const localY = Math.sin(a)*r;
+  const z = -135 - Math.random()*25;
+  
+  const center = getCurveOffset(z);
+  grp.position.set(center.x + localX, center.y + localY, z);
+  grp.rotation.set(rnd(0,6.28), rnd(0,6.28), rnd(0,6.28));
+  scene.add(grp);
+
+  const box = new THREE.Box3().setFromObject(grp);
+  const sphere = box.getBoundingSphere(new THREE.Sphere());
+
   obstacles.push({
-    mesh,
-    radius: s * 1.0,
-    spin: { x: rnd(-1.6,1.6), y: rnd(-1.6,1.6) }
+    mesh: grp,
+    localX: localX,
+    localY: localY,
+    radius: Math.max(0.62, sphere.radius * 0.82),
+    spin: { x: rnd(-0.9,0.9), y: rnd(-0.9,0.9), z: rnd(-0.6,0.6) }
   });
 }
 
@@ -344,11 +586,18 @@ function spawnOrb(){
   g.add(new THREE.Mesh(orbGlowGeo, orbGlowMat));
   const core = new THREE.Mesh(orbCoreGeo, orbCoreMat);
   g.add(core);
+  
   const a = Math.random() * Math.PI * 2;
   const r = Math.sqrt(Math.random()) * 4.2;
-  g.position.set(Math.cos(a)*r, Math.sin(a)*r, -130 - Math.random()*22);
+  const localX = Math.cos(a)*r;
+  const localY = Math.sin(a)*r;
+  const z = -130 - Math.random()*22;
+
+  const center = getCurveOffset(z);
+  g.position.set(center.x + localX, center.y + localY, z);
+  
   scene.add(g);
-  orbs.push({ mesh:g, core });
+  orbs.push({ mesh:g, core, localX, localY });
 }
 
 function spawnWave(){
@@ -361,12 +610,11 @@ function spawnWave(){
 function spawnLogic(){
   if (state.traveled < state.nextSpawn) return;
   const t = Math.min(1, state.elapsed / 80);
-  const interval = 0.95 - 0.42 * t;          // 波次之间的「时间」间隔
+  const interval = 0.95 - 0.42 * t;
   state.nextSpawn = state.traveled + state.speed * interval;
   spawnWave();
 }
 
-/* ═══════════ 飞船操控 ═══════════ */
 const keys = new Set();
 
 function updateShip(dt){
@@ -377,91 +625,115 @@ function updateShip(dt){
   if (keys.has('s') || keys.has('arrowdown'))  dirY -= 1;
 
   if (dirX || dirY){
-    ship.position.x += dirX * 15 * dt;
-    ship.position.y += dirY * 15 * dt;
-    pointerTargetX = ship.position.x;
-    pointerTargetY = ship.position.y;
+    state.shipX += dirX * 15 * dt;
+    state.shipY += dirY * 15 * dt;
+    pointerTargetX = state.shipX;
+    pointerTargetY = state.shipY;
   } else if (pointerActive){
     const k = damp(17, dt);
-    ship.position.x += (pointerTargetX - ship.position.x) * k;
-    ship.position.y += (pointerTargetY - ship.position.y) * k;
+    state.shipX += (pointerTargetX - state.shipX) * k;
+    state.shipY += (pointerTargetY - state.shipY) * k;
   }
 
-  ship.position.x = clamp(ship.position.x, -LIMIT_X, LIMIT_X);
-  ship.position.y = clamp(ship.position.y, -LIMIT_Y, LIMIT_Y);
+  state.shipX = clamp(state.shipX, -LIMIT_X, LIMIT_X);
+  state.shipY = clamp(state.shipY, -LIMIT_Y, LIMIT_Y);
 
-  // 根据速度做倾斜，增强手感
-  const vx = (ship.position.x - prevShipX) / Math.max(dt, 1e-4);
-  const vy = (ship.position.y - prevShipY) / Math.max(dt, 1e-4);
+  const vx = (state.shipX - prevShipX) / Math.max(dt, 1e-4);
+  const vy = (state.shipY - prevShipY) / Math.max(dt, 1e-4);
   const k = damp(11, dt);
+  
   ship.rotation.z += (-vx * 0.035 - ship.rotation.z) * k;
   ship.rotation.x += ( vy * 0.030 - ship.rotation.x) * k;
   ship.rotation.y += (0 - ship.rotation.y) * k;
 
-  prevShipX = ship.position.x;
-  prevShipY = ship.position.y;
+  prevShipX = state.shipX;
+  prevShipY = state.shipY;
 }
 
-/* ═══════════ 世界更新 ═══════════ */
 function updateWorld(dt){
   const dz = scrollSpeed * dt;
+  const time = performance.now() * 0.001;
 
-  // 隧道环
-  for (const r of rings){
-    r.position.z += dz;
-    if (r.position.z > 14) r.position.z -= RING_COUNT * RING_GAP;
-  }
+  planetUniforms.time.value = time;
 
-  // 星空
+  // 星空移动
   const sp = starGeo.attributes.position;
   for (let i = 0; i < STAR_COUNT; i++){
-    let z = sp.array[i*3+2] + dz * 0.6;
+    let z = sp.array[i*3+2] + dz * 0.8;
     if (z > 20) z -= STAR_RANGE;
     sp.array[i*3+2] = z;
   }
   sp.needsUpdate = true;
 
-  // 障碍物
+  // 流星更新
+  updateMeteors(dt, dz);
+
+  // 障碍物更新
   for (let i = obstacles.length - 1; i >= 0; i--){
     const o = obstacles[i];
     const prevZ = o.mesh.position.z;
     o.mesh.position.z += dz;
+    
+    // 映射到曲面坐标系
+    const z = o.mesh.position.z;
+    const center = getCurveOffset(z);
+    const T = getTangent(z);
+    const up = new THREE.Vector3(0, 1, 0);
+    const right = new THREE.Vector3().crossVectors(T, up).normalize();
+    const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+    
+    o.mesh.position.copy(new THREE.Vector3(center.x, center.y, z)
+        .add(right.clone().multiplyScalar(o.localX))
+        .add(realUp.clone().multiplyScalar(o.localY)));
+
     o.mesh.rotation.x += o.spin.x * dt;
     o.mesh.rotation.y += o.spin.y * dt;
+    o.mesh.rotation.z += o.spin.z * dt;
 
     if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
-      const dx = o.mesh.position.x - ship.position.x;
-      const dy = o.mesh.position.y - ship.position.y;
+      const dx = o.localX - state.shipX;
+      const dy = o.localY - state.shipY;
       if (Math.hypot(dx, dy) < o.radius + 0.5){ crash(); }
     }
-
+    
     if (o.mesh.position.z > 16){
       scene.remove(o.mesh);
       obstacles.splice(i, 1);
     }
   }
 
-  // 能量球
+  // 能量球更新
   for (let i = orbs.length - 1; i >= 0; i--){
     const o = orbs[i];
     const prevZ = o.mesh.position.z;
     o.mesh.position.z += dz;
+    
+    const z = o.mesh.position.z;
+    const center = getCurveOffset(z);
+    const T = getTangent(z);
+    const up = new THREE.Vector3(0, 1, 0);
+    const right = new THREE.Vector3().crossVectors(T, up).normalize();
+    const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+    
+    o.mesh.position.copy(new THREE.Vector3(center.x, center.y, z)
+        .add(right.clone().multiplyScalar(o.localX))
+        .add(realUp.clone().multiplyScalar(o.localY)));
+
     o.core.rotation.x += 2.2 * dt;
     o.core.rotation.y += 3.0 * dt;
-    o.mesh.position.y += Math.sin(performance.now()*0.003 + i) * 0.004;
 
     if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
-      const dx = o.mesh.position.x - ship.position.x;
-      const dy = o.mesh.position.y - ship.position.y;
+      const dx = o.localX - state.shipX;
+      const dy = o.localY - state.shipY;
       if (Math.hypot(dx, dy) < 1.35){
         state.score += 50;
-        sfxPickup();
+        Sound.pickup();
         scene.remove(o.mesh);
         orbs.splice(i, 1);
         continue;
       }
     }
-
+    
     if (o.mesh.position.z > 16){
       scene.remove(o.mesh);
       orbs.splice(i, 1);
@@ -469,18 +741,38 @@ function updateWorld(dt){
   }
 }
 
-/* ═══════════ 相机 ═══════════ */
 function updateCamera(dt){
-  const k = damp(6, dt);
-  camera.position.x += (ship.position.x * 0.5 - camera.position.x) * k;
-  camera.position.y += (2.6 + ship.position.y * 0.5 - camera.position.y) * k;
-  camera.position.z = 8.6;
-  camera.lookAt(ship.position.x * 0.35, ship.position.y * 0.35 - 0.3, -16);
+  // 彻底锁死在 z=0 的赛道正中心
+  const offset0 = getCurveOffset(0);
+  const T = getTangent(0);
+  const up = new THREE.Vector3(0, 1, 0);
+  const right = new THREE.Vector3().crossVectors(T, up).normalize();
+  const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
+
+  // 飞船的绝对世界坐标
+  const shipWorld = new THREE.Vector3(offset0.x, offset0.y, 0)
+      .add(right.clone().multiplyScalar(state.shipX))
+      .add(realUp.clone().multiplyScalar(state.shipY));
+
+  shipPivot.position.copy(shipWorld);
+  shipPivot.up.copy(realUp);
+  shipPivot.lookAt(shipWorld.clone().add(T)); 
+
+  // 摄像机绝对位置（不包含任何飞船的偏移）
+  const camOffset = T.clone().multiplyScalar(-14); 
+  const camUpOffset = realUp.clone().multiplyScalar(4.0);
+  
+  const desiredCamPos = new THREE.Vector3(offset0.x, offset0.y, 0).add(camOffset).add(camUpOffset);
+  const camTarget = new THREE.Vector3(offset0.x, offset0.y, 0).add(T.clone().multiplyScalar(30));
+
+  // 直接硬锁定位置和朝向
+  camera.position.copy(desiredCamPos);
+  camera.up.copy(realUp);
+  camera.lookAt(camTarget);
 }
 
 /* ═══════════ 爆炸粒子 ═══════════ */
 const explosion = { points:null, vels:[], life:0, maxLife:1.3 };
-
 function createExplosion(pos){
   const N = 110;
   const positions = new Float32Array(N * 3);
@@ -495,19 +787,16 @@ function createExplosion(pos){
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const mat = new THREE.PointsMaterial({
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({
     color:0xffb04d, size:0.55, transparent:true, opacity:1,
     depthWrite:false, blending:THREE.AdditiveBlending
-  });
-  const pts = new THREE.Points(geo, mat);
+  }));
   scene.add(pts);
-
   explosion.points = pts;
   explosion.vels = vels;
   explosion.life = 1.3;
   explosion.maxLife = 1.3;
 }
-
 function updateParticles(dt){
   if (!explosion.points) return;
   explosion.life -= dt;
@@ -532,8 +821,26 @@ function updateParticles(dt){
 }
 
 /* ═══════════ 游戏流程 ═══════════ */
+function resetScene(){
+  for (const o of obstacles) scene.remove(o.mesh);
+  obstacles.length = 0;
+  for (const o of orbs) scene.remove(o.mesh);
+  orbs.length = 0;
+
+  shipPivot.visible = true;
+  shipPivot.position.set(0, 0, 0);
+  shipPivot.rotation.set(0, 0, 0);
+  ship.rotation.set(0, 0, 0);
+  
+  state.shipX = 0;
+  state.shipY = 0;
+  prevShipX = 0; prevShipY = 0;
+  pointerTargetX = 0; pointerTargetY = 0;
+  pointerActive = false;
+}
+
 function startGame(){
-  initAudio();
+  Sound.init();
 
   state.mode = 'playing';
   state.elapsed = 0;
@@ -542,17 +849,7 @@ function startGame(){
   state.nextSpawn = 45;
   state.score = 0;
 
-  for (const o of obstacles) scene.remove(o.mesh);
-  obstacles.length = 0;
-  for (const o of orbs) scene.remove(o.mesh);
-  orbs.length = 0;
-
-  ship.visible = true;
-  ship.position.set(0, 0, 0);
-  ship.rotation.set(0, 0, 0);
-  prevShipX = 0; prevShipY = 0;
-  pointerTargetX = 0; pointerTargetY = 0;
-  pointerActive = false;
+  resetScene();
 
   scoreEl.textContent = '0';
   bestEl.textContent = state.best;
@@ -561,13 +858,21 @@ function startGame(){
   overScreen.classList.add('hidden');
 }
 
+function exitToMenu(){
+  state.mode = 'ready';
+  resetScene();
+  overScreen.classList.add('hidden');
+  hudEl.style.display = 'none';
+  startScreen.classList.remove('hidden');
+}
+
 function crash(){
   if (state.mode !== 'playing') return;
   state.mode = 'over';
-  ship.visible = false;
+  shipPivot.visible = false;
 
-  createExplosion(ship.position);
-  sfxBoom();
+  createExplosion(shipPivot.position);
+  Sound.explode();
 
   flashEl.style.opacity = '0.9';
   setTimeout(() => { flashEl.style.opacity = '0'; }, 90);
@@ -607,6 +912,8 @@ function update(dt){
 
   } else if (state.mode === 'ready'){
     scrollSpeed = 22;
+    const offset0 = getCurveOffset(0);
+    shipPivot.position.set(offset0.x, offset0.y, 0);
     ship.position.y = Math.sin(time * 1.5) * 0.22;
     ship.rotation.y = Math.sin(time * 0.6) * 0.25;
     ship.rotation.z = Math.sin(time * 0.9) * 0.06;
@@ -617,7 +924,12 @@ function update(dt){
 
   updateWorld(dt);
   updateParticles(dt);
-  updateCamera(dt);
+  
+  if (state.mode !== 'over') {
+      updateCamera(dt);
+  } else {
+      camera.position.z += dt * 2;
+  }
 }
 
 function animate(){
@@ -627,7 +939,7 @@ function animate(){
   renderer.render(scene, camera);
 }
 
-/* ═══════════ 输入 ═══════════ */
+/* ═══════════ 输入 & 自适应 ═══════════ */
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
@@ -637,7 +949,6 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
 
-// 鼠标：绝对位置映射
 addEventListener('mousemove', e => {
   if (state.mode !== 'playing') return;
   const nx = (e.clientX / innerWidth) * 2 - 1;
@@ -647,7 +958,6 @@ addEventListener('mousemove', e => {
   pointerActive = true;
 });
 
-// 触摸：相对拖动
 let touchId = null, lastTX = 0, lastTY = 0;
 addEventListener('touchstart', e => {
   if (state.mode !== 'playing') return;
@@ -655,7 +965,6 @@ addEventListener('touchstart', e => {
   touchId = t.identifier;
   lastTX = t.clientX; lastTY = t.clientY;
 }, { passive:true });
-
 addEventListener('touchmove', e => {
   if (state.mode !== 'playing' || touchId === null) return;
   for (const t of e.changedTouches){
@@ -669,7 +978,6 @@ addEventListener('touchmove', e => {
   }
   e.preventDefault();
 }, { passive:false });
-
 addEventListener('touchend', e => {
   for (const t of e.changedTouches){
     if (t.identifier === touchId) touchId = null;
@@ -678,15 +986,14 @@ addEventListener('touchend', e => {
 
 document.getElementById('startBtn').addEventListener('click', startGame);
 document.getElementById('retryBtn').addEventListener('click', startGame);
+document.getElementById('exitBtn').addEventListener('click', exitToMenu);
 
-/* ═══════════ 自适应 ═══════════ */
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
 
-/* ═══════════ 启动 ═══════════ */
 bestEl.textContent = state.best;
 animate();
 </script>
