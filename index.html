@@ -207,13 +207,22 @@ const keyLight = new THREE.DirectionalLight(0xbfe8ff, 2.0);
 keyLight.position.set(10, 20, 5); 
 scene.add(keyLight);
 
-/* 音效引擎 */
+/* 音效引擎（已替换外部 BGM） */
 const Sound = {
   ctx:null, master:null, bgmGain:null, sfxGain:null, delayNode:null, ready:false,
-  bgmTimer:null, currentChord:0, noteIndex:0,
+  bgmAudio: null, fadeInterval: null,
   
   init(){
     if (this.ctx){ if(this.ctx.state==='suspended') this.ctx.resume(); return; }
+    
+    // 初始化背景音乐
+    if (!this.bgmAudio) {
+      this.bgmAudio = new Audio('./bgm.mp3');
+      this.bgmAudio.loop = true;
+      this.bgmAudio.volume = 0.25;
+    }
+
+    // 保留原有音效引擎
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     this.ctx = new AC();
@@ -225,55 +234,36 @@ const Sound = {
     const delayFeedback = this.ctx.createGain(); delayFeedback.gain.value = 0.35;
     this.delayNode.connect(delayFeedback); delayFeedback.connect(this.delayNode);
     this.delayNode.connect(this.master);
-    this.bgmGain = this.ctx.createGain(); this.bgmGain.gain.value = 0.25;
-    this.bgmGain.connect(this.master);
+    
     this.ready = true;
-    this.startBGM();
   },
-  unlock() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
-  playTone(freq, type, time, dur, vol, pan = 0) {
-    if(!this.ctx) return;
-    const o = this.ctx.createOscillator(); o.type = type;
-    o.frequency.setValueAtTime(freq, time);
-    const g = this.ctx.createGain();
-    g.gain.setValueAtTime(0, time); g.gain.linearRampToValueAtTime(vol, time + 0.05);
-    g.gain.exponentialRampToValueAtTime(0.001, time + dur);
-    const p = this.ctx.createStereoPanner(); p.pan.setValueAtTime(pan, time);
-    o.connect(g); g.connect(p); p.connect(this.bgmGain);
-    if (Math.random() > 0.5) p.connect(this.delayNode);
-    o.start(time); o.stop(time + dur + 0.1);
+  
+  unlock() { 
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); 
+    if (this.bgmAudio && this.bgmAudio.paused) {
+      this.bgmAudio.play().catch(e => console.log('等待用户交互播放BGM', e));
+    }
   },
-  startBGM(){
-    if (!this.ready || this.bgmTimer) return;
-    const chords = [
-      [110.00, 130.81, 164.81, 246.94], [87.31, 130.81, 174.61, 220.00],  
-      [130.81, 164.81, 196.00, 246.94], [98.00, 146.83, 196.00, 246.94]   
-    ];
-    const arpPattern = [0, 2, 1, 3, 2, 1, 0, 2]; 
-    let beat = 0;
-    const scheduleNext = () => {
-      if(!this.ctx) return;
-      const t = this.ctx.currentTime;
-      const chord = chords[this.currentChord];
-      if (beat % 8 === 0) {
-        chord.forEach((freq, i) => { this.playTone(freq / 2, 'sine', t, 4.0, 0.1, (i%2===0? -0.5 : 0.5)); });
-      }
-      const noteFreq = chord[arpPattern[this.noteIndex % arpPattern.length]];
-      this.playTone(noteFreq, 'triangle', t, 0.6, 0.08, Math.sin(beat * 0.5));
-      this.noteIndex++;
-      if (beat % 8 === 7) this.currentChord = (this.currentChord + 1) % chords.length;
-      beat++;
-      this.bgmTimer = setTimeout(scheduleNext, 300); 
-    };
-    scheduleNext();
-  },
+
   fadeBGM(targetVol, duration){
-    if (!this.ready) return;
-    const t = this.ctx.currentTime;
-    this.bgmGain.gain.cancelScheduledValues(t);
-    this.bgmGain.gain.setValueAtTime(this.bgmGain.gain.value, t);
-    this.bgmGain.gain.linearRampToValueAtTime(targetVol, t + duration);
+    if (!this.bgmAudio) return;
+    if (this.fadeInterval) clearInterval(this.fadeInterval);
+    
+    const stepTime = 50; 
+    const steps = (duration * 1000) / stepTime;
+    const volumeStep = (targetVol - this.bgmAudio.volume) / steps;
+
+    this.fadeInterval = setInterval(() => {
+      let newVol = this.bgmAudio.volume + volumeStep;
+      if ((volumeStep > 0 && newVol >= targetVol) || (volumeStep < 0 && newVol <= targetVol)) {
+        this.bgmAudio.volume = Math.max(0, Math.min(1, targetVol));
+        clearInterval(this.fadeInterval);
+      } else {
+        this.bgmAudio.volume = Math.max(0, Math.min(1, newVol));
+      }
+    }, stepTime);
   },
+
   pickup(){
     if (!this.ready) return;
     const t = this.ctx.currentTime;
@@ -440,7 +430,6 @@ const bulletGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.0, 4); bulletGeo.rota
 const bulletMat = new THREE.MeshBasicMaterial({ color: 0xff4d4d, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
 
 /* 游戏状态 */
-// 【关键修改】大幅放宽限制，确保飞船能飞到屏幕最边缘
 const LIMIT_X = 7.0, LIMIT_Y = 6.0, PLACE_R = 5.0;
 const obstacles = []; const orbs = []; const powerups = []; const bullets = [];
 let scrollSpeed = 0; let pointerActive = false; let pointerTargetX = 0, pointerTargetY = 0; let prevShipX = 0, prevShipY = 0;
@@ -450,6 +439,8 @@ const state = {
   shipX: 0, shipY: 0, best: +(localStorage.getItem('starrunner_best') || 0),
   shieldTimer: 0, weaponTimer: 0
 };
+
+const keys = new Set();
 
 function showToast(text, color) {
   toastEl.innerText = text;
@@ -627,7 +618,6 @@ function updateWorld(dt){
     o.core.rotation.x += 2.2 * dt; o.core.rotation.y += 3.0 * dt;
 
     if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
-      // 放大拾取判定到 1.6
       if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.6){
         state.score += 50; Sound.pickup(); scene.remove(o.mesh); orbs.splice(i, 1); continue;
       }
@@ -645,7 +635,6 @@ function updateWorld(dt){
     o.core.rotation.x += 2.0 * dt; o.core.rotation.y += 2.5 * dt;
 
     if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
-      // 放大拾取判定到 1.6
       if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.6){
         if (o.type === 'shield') {
           state.shieldTimer = 5.0;
@@ -677,7 +666,6 @@ function updateCamera(dt){
   const shipWorld = new THREE.Vector3(offset0.x, offset0.y, 0).add(right.clone().multiplyScalar(state.shipX)).add(realUp.clone().multiplyScalar(state.shipY));
   shipPivot.position.copy(shipWorld); shipPivot.up.copy(realUp); shipPivot.lookAt(shipWorld.clone().add(T)); 
   
-  // 【关键修改】降低摄像机高度，拉近视角，消除底部的深度盲区
   const camOffset = T.clone().multiplyScalar(-16); 
   const camUpOffset = realUp.clone().multiplyScalar(2.0);
   
@@ -796,7 +784,6 @@ function animate(){
 }
 
 /* 输入 */
-const keys = new Set();
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
@@ -821,7 +808,6 @@ addEventListener('touchmove', e => {
   if (state.mode !== 'playing' || touchId === null) return;
   for (const t of e.changedTouches){
     if (t.identifier !== touchId) continue;
-    // 提高触摸灵敏度，确保能划到最边缘
     const dx = t.clientX - lastTX; const dy = t.clientY - lastTY; lastTX = t.clientX; lastTY = t.clientY;
     pointerTargetX = clamp(pointerTargetX + dx * 0.06, -LIMIT_X, LIMIT_X);
     pointerTargetY = clamp(pointerTargetY - dy * 0.06, -LIMIT_Y, LIMIT_Y);
