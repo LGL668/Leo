@@ -37,17 +37,19 @@
   .pu-icon.weapon { color: var(--red); border: 1px solid rgba(255,77,77,.3); background: rgba(255,77,77,.1); text-shadow: 0 0 10px var(--red); }
   .pu-icon.boost { color: #ffea00; border: 1px solid rgba(255,234,0,.3); background: rgba(255,234,0,.1); text-shadow: 0 0 10px #ffea00; }
 
+  /* 移除毛玻璃特效，改用纯色半透明，防止 iOS 点击穿透 Bug */
   .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:radial-gradient(circle at 50% 45%,rgba(10,30,60,.55),rgba(2,3,10,.93));
-    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    background:rgba(2,3,10,0.85);
     transition:opacity .35s ease; z-index: 10;}
   .overlay.hidden{opacity:0;pointer-events:none}
-  .card{text-align:center;padding:40px 46px;max-width:480px;position:relative;}
+  
+  /* 给 card 设定最高的层级 */
+  .card{text-align:center;padding:40px 46px;max-width:480px;position:relative; z-index: 1000; pointer-events: auto;}
 
   .title{font-size:46px;font-weight:900;letter-spacing:10px;font-style:italic;
     background:linear-gradient(90deg,#ff3d8b,#3ee8ff);
     -webkit-background-clip:text;background-clip:text;color:transparent;
-    filter:drop-shadow(0 0 26px rgba(255,61,139,.45))}
+    text-shadow: 0 0 20px rgba(255,61,139,.4);} /* 换成兼容性更好的 text-shadow */
   .subtitle{font-size:11px;letter-spacing:9px;opacity:.45;margin-top:8px;text-transform:uppercase}
 
   .tips{margin:30px 0 34px;font-size:14px;line-height:2.1;opacity:.75}
@@ -57,14 +59,16 @@
 
   .btn-group{display:flex;gap:15px;justify-content:center;margin-top:10px;flex-wrap:wrap;}
   
+  /* 按钮层级提到最高，绝对不遮挡 */
   .btn{pointer-events:auto;cursor:pointer;border:none;border-radius:999px;
     padding:16px 40px;font-size:16px;font-weight:800;letter-spacing:3px;
     color:#001018;background:linear-gradient(135deg,#ff3d8b,#3ee8ff);
     box-shadow:0 0 36px rgba(255,61,139,.5);
-    transition:transform .18s,box-shadow .18s,background .18s;font-family:inherit}
+    transition:transform .18s,box-shadow .18s,background .18s;font-family:inherit; position: relative; z-index: 1001;}
   .btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 52px rgba(62,232,255,.85)}
   .btn:active{transform:scale(.96)}
 
+  /* 防止按钮内的元素干扰点击 */
   .btn * { pointer-events: none; }
 
   .btn-secondary{background:transparent;border:1px solid rgba(62,232,255,.35);color:#8fe3ff;box-shadow:none;}
@@ -141,7 +145,7 @@
       <button class="btn" id="startBtn">点火起步</button>
       <button class="btn btn-reward" id="rewardBtn">赞赏 ☕</button>
     </div>
-    <div class="version">v3.4 物理防撞版</div>
+    <div class="version">v3.5 点击修复版</div>
   </div>
 </div>
 
@@ -159,7 +163,7 @@
 </div>
 
 <div class="overlay hidden" id="rewardModal" style="z-index: 20;">
-  <div class="card" style="background: rgba(10, 20, 35, 0.8); border: 1px solid rgba(62,232,255,0.2); border-radius: 20px;">
+  <div class="card" style="background: rgba(10, 20, 35, 0.9); border: 1px solid rgba(62,232,255,0.2); border-radius: 20px;">
     <div class="subtitle" style="color: var(--pink);">THANK YOU</div>
     <div style="font-size: 20px; font-weight: bold; margin: 15px 0 5px;">感谢您的支持！</div>
     <div style="font-size: 13px; opacity: 0.6; margin-bottom: 10px;">本游戏完全免费，您的支持是我更新的动力</div>
@@ -441,7 +445,6 @@ const DEBRIS_MATS = [
 function makeDebris(){
   const grp = new THREE.Group();
   const m = new THREE.Mesh(DEBRIS_GEOS[Math.floor(Math.random()*DEBRIS_GEOS.length)], DEBRIS_MATS[Math.floor(Math.random()*DEBRIS_MATS.length)]);
-  // 只旋转，不偏心，确保包围球计算正确
   m.rotation.set(rnd(0,6.28), rnd(0,6.28), rnd(0,6.28)); 
   grp.add(m);
   return grp;
@@ -512,9 +515,8 @@ function getSpawnPos() {
   return { localX, localY: 0.5 };
 }
 
-/* 重构障碍物生成：同排最多2个，贴地 */
 function spawnObstacleWave(spawnZ) {
-  const obsCount = Math.random() > 0.5 ? 2 : 1; // 50%概率1个或2个
+  const obsCount = Math.random() > 0.5 ? 2 : 1;
   const center = getCurveOffset(spawnZ);
 
   for (let i = 0; i < obsCount; i++) {
@@ -522,14 +524,12 @@ function spawnObstacleWave(spawnZ) {
     if (obsCount === 1) {
       localX = rnd(-LIMIT_X * 0.8, LIMIT_X * 0.8);
     } else {
-      // 确保一左一右，留出中间空隙 (总宽14，中间至少留4)
       localX = (i === 0) ? rnd(-LIMIT_X * 0.9, -2.2) : rnd(2.2, LIMIT_X * 0.9);
     }
 
     const grp = makeDebris(); 
-    // 计算包围球，让障碍物稳稳落在地上
     const sphere = new THREE.Box3().setFromObject(grp).getBoundingSphere(new THREE.Sphere());
-    const yOffset = sphere.radius * 0.8; // 沉入地面一点点，显得真实
+    const yOffset = sphere.radius * 0.8;
 
     grp.position.set(center.x + localX, yOffset, spawnZ);
     scene.add(grp);
@@ -575,11 +575,9 @@ function spawnBoostPad(){
 }
 
 function spawnWave(){
-  // 每次生成一波固定的障碍物
   const spawnZ = -160 - Math.random()*20;
   spawnObstacleWave(spawnZ);
   
-  // 道具和加速带随机生成
   if (Math.random() < 0.4) spawnOrb();
   if (Math.random() < 0.15) spawnPowerup();
   if (Math.random() < 0.25) spawnBoostPad();
@@ -620,14 +618,13 @@ function updateShip(dt){
       velocityX = -velocityX * 0.2;
   }
   
-  // 极严苛的防翻滚
   const targetYaw = clamp(-velocityX * 0.012, -0.4, 0.4);
   car.rotation.y += (targetYaw - car.rotation.y) * damp(10, dt);
   
   const targetRoll = clamp(velocityX * 0.006, -0.15, 0.15);
   car.rotation.z += (targetRoll - car.rotation.z) * damp(8, dt);
   
-  car.rotation.x = 0; // 强制锁死
+  car.rotation.x = 0; 
 }
 
 function updateWorld(dt){
@@ -867,7 +864,8 @@ function resetScene(){
   speedHud.classList.remove('active');
 }
 
-function startGame(){
+// 暴露到全局，确保不会因为模块化作用域导致点击失效
+window.startGame = function() {
   try { Sound.init(); Sound.playBGM(); } catch(e) {}
   
   state.mode = 'playing'; state.elapsed = 0; state.speed = state.baseSpeed; state.traveled = 0; state.nextSpawn = 45; state.score = 0;
@@ -876,7 +874,7 @@ function startGame(){
   hudEl.style.display = 'flex'; startScreen.classList.add('hidden'); overScreen.classList.add('hidden'); rewardModal.classList.add('hidden');
 }
 
-function exitToMenu(){
+window.exitToMenu = function() {
   state.mode = 'ready'; resetScene(); try{Sound.stopBGM();}catch(e){} overScreen.classList.add('hidden'); rewardModal.classList.add('hidden'); hudEl.style.display = 'none'; startScreen.classList.remove('hidden');
 }
 
@@ -955,7 +953,7 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
   keys.add(k);
-  if (k === ' ' && state.mode !== 'playing' && rewardModal.classList.contains('hidden')) startGame();
+  if (k === ' ' && state.mode !== 'playing' && rewardModal.classList.contains('hidden')) window.startGame();
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
@@ -984,9 +982,10 @@ addEventListener('touchmove', e => {
 }, { passive:false });
 addEventListener('touchend', e => { for (const t of e.changedTouches){ if (t.identifier === touchId) touchId = null; } }, { passive:true });
 
-document.getElementById('startBtn').onclick = startGame;
-document.getElementById('retryBtn').onclick = startGame;
-document.getElementById('exitBtn').onclick = exitToMenu;
+// 使用全局函数直接绑定，防止事件穿透/遮挡导致无法点击
+document.getElementById('startBtn').onclick = window.startGame;
+document.getElementById('retryBtn').onclick = window.startGame;
+document.getElementById('exitBtn').onclick = window.exitToMenu;
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
