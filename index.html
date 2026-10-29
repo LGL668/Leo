@@ -84,7 +84,7 @@
       移动<b>鼠标</b> 或 <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>
       <span class="key">↑↓←→</span> 操控飞船<br>
       躲避<b style="color:#ff3d8b">太空垃圾</b>，收集<b style="color:#5cffc0">绿色能量球</b><br>
-      跟随流星轨迹，体验穿梭快感
+      感受赛道弯曲，跟随流星轨迹
     </div>
     <button class="btn" id="startBtn">开始飞行</button>
   </div>
@@ -144,18 +144,116 @@ const keyLight = new THREE.DirectionalLight(0xbfe8ff, 2.0);
 keyLight.position.set(10, 20, 5); 
 scene.add(keyLight);
 
-/* ═══════════ 音效引擎 ═══════════ */
+/* ═══════════ 音效与音乐引擎 ═══════════ */
 const Sound = {
-  ctx:null, master:null, ready:false,
+  ctx:null, master:null, bgmGain:null, sfxGain:null, delayNode:null, ready:false,
+  bgmTimer:null, currentChord:0, noteIndex:0,
+  
   init(){
-    if (this.ctx){ if(this.ctx.state==='suspended') this.ctx.resume(); return; }
+    if (this.ctx){ 
+      if(this.ctx.state==='suspended') this.ctx.resume(); 
+      return; 
+    }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     this.ctx = new AC();
-    this.master = this.ctx.createGain(); this.master.gain.value = 0.4;
+    
+    this.master = this.ctx.createGain(); 
+    this.master.gain.value = 0.6;
     this.master.connect(this.ctx.destination);
+
+    this.sfxGain = this.ctx.createGain();
+    this.sfxGain.gain.value = 0.8;
+    this.sfxGain.connect(this.master);
+
+    // 空间延迟效果器
+    this.delayNode = this.ctx.createDelay();
+    this.delayNode.delayTime.value = 0.45;
+    const delayFeedback = this.ctx.createGain();
+    delayFeedback.gain.value = 0.35;
+    this.delayNode.connect(delayFeedback);
+    delayFeedback.connect(this.delayNode);
+    this.delayNode.connect(this.master);
+
+    this.bgmGain = this.ctx.createGain();
+    this.bgmGain.gain.value = 0.25;
+    this.bgmGain.connect(this.master);
+
     this.ready = true;
+    this.startBGM();
   },
+
+  playTone(freq, type, time, dur, vol, pan = 0) {
+    const o = this.ctx.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, time);
+    
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0, time);
+    g.gain.linearRampToValueAtTime(vol, time + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, time + dur);
+
+    const p = this.ctx.createStereoPanner();
+    p.pan.setValueAtTime(pan, time);
+
+    o.connect(g);
+    g.connect(p);
+    p.connect(this.bgmGain);
+    
+    // 部分音符加入延迟
+    if (Math.random() > 0.5) p.connect(this.delayNode);
+
+    o.start(time);
+    o.stop(time + dur + 0.1);
+  },
+
+  startBGM(){
+    if (!this.ready || this.bgmTimer) return;
+    
+    // 和弦进行 (A minor 氛围)
+    const chords = [
+      [110.00, 130.81, 164.81, 246.94], // Am9
+      [87.31, 130.81, 174.61, 220.00],  // Fmaj7
+      [130.81, 164.81, 196.00, 246.94], // Cmaj7
+      [98.00, 146.83, 196.00, 246.94]   // G6
+    ];
+
+    const arpPattern = [0, 2, 1, 3, 2, 1, 0, 2]; // 琶音序列
+    let beat = 0;
+
+    const scheduleNext = () => {
+      const t = this.ctx.currentTime;
+      const chord = chords[this.currentChord];
+      
+      // 铺底 Pad 长音 (每 4 拍)
+      if (beat % 8 === 0) {
+        chord.forEach((freq, i) => {
+          this.playTone(freq / 2, 'sine', t, 4.0, 0.1, (i%2===0? -0.5 : 0.5));
+        });
+      }
+
+      // 闪烁琶音
+      const noteFreq = chord[arpPattern[this.noteIndex % arpPattern.length]];
+      this.playTone(noteFreq, 'triangle', t, 0.6, 0.08, Math.sin(beat * 0.5));
+
+      this.noteIndex++;
+      if (beat % 8 === 7) this.currentChord = (this.currentChord + 1) % chords.length;
+      beat++;
+
+      this.bgmTimer = setTimeout(scheduleNext, 300); // 约 200 BPM
+    };
+    
+    scheduleNext();
+  },
+
+  fadeBGM(targetVol, duration){
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    this.bgmGain.gain.cancelScheduledValues(t);
+    this.bgmGain.gain.setValueAtTime(this.bgmGain.gain.value, t);
+    this.bgmGain.gain.linearRampToValueAtTime(targetVol, t + duration);
+  },
+
   pickup(){
     if (!this.ready) return;
     const t = this.ctx.currentTime;
@@ -163,8 +261,9 @@ const Sound = {
     o.frequency.setValueAtTime(880, t); o.frequency.exponentialRampToValueAtTime(1760, t+0.1);
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.2);
-    o.connect(g); g.connect(this.master); o.start(t); o.stop(t+0.2);
+    o.connect(g); g.connect(this.sfxGain); o.start(t); o.stop(t+0.2);
   },
+
   explode(){
     if (!this.ready) return;
     const t = this.ctx.currentTime;
@@ -172,7 +271,7 @@ const Sound = {
     o.frequency.setValueAtTime(100, t); o.frequency.exponentialRampToValueAtTime(20, t+0.5);
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.6);
-    o.connect(g); g.connect(this.master); o.start(t); o.stop(t+0.6);
+    o.connect(g); g.connect(this.sfxGain); o.start(t); o.stop(t+0.6);
   }
 };
 
@@ -415,15 +514,13 @@ nebulaMesh.position.set(0, 0, -3000);
 scene.add(nebulaMesh);
 
 /* ═══════════════════════════════════════════
-   动态流星轨迹（代替死板的光线）
+   动态流星轨迹
    ═══════════════════════════════════════════ */
 const METEOR_COUNT = 90;
 const meteors = [];
 
-// 创建细长的流星几何体
 const meteorGeo = new THREE.CylinderGeometry(0.04, 0.08, 6, 6);
-meteorGeo.rotateX(Math.PI / 2); // 让圆柱沿 Z 轴拉伸
-// 偏移几何体，让流星的前端更亮（通过改变顶点颜色或简单着色实现，这里直接整根发光）
+meteorGeo.rotateX(Math.PI / 2); 
 const meteorMat = new THREE.MeshBasicMaterial({
   color: 0x3ee8ff,
   transparent: true,
@@ -436,26 +533,21 @@ for (let i = 0; i < METEOR_COUNT; i++) {
   const mesh = new THREE.Mesh(meteorGeo, meteorMat);
   scene.add(mesh);
   
-  // 随机分配在轨道两侧，形成两条虚线边界
   const side = Math.random() > 0.5 ? 1 : -1;
   const localX = side * rnd(3.5, 5.5);
   const localY = rnd(-1, 1);
   
   meteors.push({
-    mesh,
-    localX,
-    localY,
-    z: -Math.random() * 350 - 20, // 分布在前后深空
-    speedScale: rnd(0.95, 1.05) // 微小速度差，产生层叠感
+    mesh, localX, localY,
+    z: -Math.random() * 350 - 20, 
+    speedScale: rnd(0.95, 1.05) 
   });
 }
 
 function updateMeteors(dt, dz) {
   for (const m of meteors) {
-    // 流星随赛道同速向前移动
     m.z += dz * m.speedScale;
     
-    // 如果飞出屏幕，重置到遥远的后方
     if (m.z > 16) {
       m.z -= 380;
       const side = Math.random() > 0.5 ? 1 : -1;
@@ -463,7 +555,6 @@ function updateMeteors(dt, dz) {
       m.localY = rnd(-1, 1);
     }
     
-    // 计算当前位置的赛道曲面和坐标系
     const z = m.z;
     const center = getCurveOffset(z);
     const T = getTangent(z);
@@ -471,13 +562,11 @@ function updateMeteors(dt, dz) {
     const right = new THREE.Vector3().crossVectors(T, up).normalize();
     const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
     
-    // 将流星映射到赛道横截面上
     const worldPos = new THREE.Vector3(center.x, center.y, z)
         .add(right.clone().multiplyScalar(m.localX))
         .add(realUp.clone().multiplyScalar(m.localY));
     
     m.mesh.position.copy(worldPos);
-    // 让流星指向飞行方向
     m.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), T);
   }
 }
@@ -656,7 +745,6 @@ function updateWorld(dt){
 
   planetUniforms.time.value = time;
 
-  // 星空移动
   const sp = starGeo.attributes.position;
   for (let i = 0; i < STAR_COUNT; i++){
     let z = sp.array[i*3+2] + dz * 0.8;
@@ -665,16 +753,13 @@ function updateWorld(dt){
   }
   sp.needsUpdate = true;
 
-  // 流星更新
   updateMeteors(dt, dz);
 
-  // 障碍物更新
   for (let i = obstacles.length - 1; i >= 0; i--){
     const o = obstacles[i];
     const prevZ = o.mesh.position.z;
     o.mesh.position.z += dz;
     
-    // 映射到曲面坐标系
     const z = o.mesh.position.z;
     const center = getCurveOffset(z);
     const T = getTangent(z);
@@ -702,7 +787,6 @@ function updateWorld(dt){
     }
   }
 
-  // 能量球更新
   for (let i = orbs.length - 1; i >= 0; i--){
     const o = orbs[i];
     const prevZ = o.mesh.position.z;
@@ -742,14 +826,12 @@ function updateWorld(dt){
 }
 
 function updateCamera(dt){
-  // 彻底锁死在 z=0 的赛道正中心
   const offset0 = getCurveOffset(0);
   const T = getTangent(0);
   const up = new THREE.Vector3(0, 1, 0);
   const right = new THREE.Vector3().crossVectors(T, up).normalize();
   const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
 
-  // 飞船的绝对世界坐标
   const shipWorld = new THREE.Vector3(offset0.x, offset0.y, 0)
       .add(right.clone().multiplyScalar(state.shipX))
       .add(realUp.clone().multiplyScalar(state.shipY));
@@ -758,14 +840,12 @@ function updateCamera(dt){
   shipPivot.up.copy(realUp);
   shipPivot.lookAt(shipWorld.clone().add(T)); 
 
-  // 摄像机绝对位置（不包含任何飞船的偏移）
   const camOffset = T.clone().multiplyScalar(-14); 
   const camUpOffset = realUp.clone().multiplyScalar(4.0);
   
   const desiredCamPos = new THREE.Vector3(offset0.x, offset0.y, 0).add(camOffset).add(camUpOffset);
   const camTarget = new THREE.Vector3(offset0.x, offset0.y, 0).add(T.clone().multiplyScalar(30));
 
-  // 直接硬锁定位置和朝向
   camera.position.copy(desiredCamPos);
   camera.up.copy(realUp);
   camera.lookAt(camTarget);
@@ -841,6 +921,7 @@ function resetScene(){
 
 function startGame(){
   Sound.init();
+  Sound.fadeBGM(0.25, 1.0); // 恢复音量
 
   state.mode = 'playing';
   state.elapsed = 0;
@@ -870,6 +951,9 @@ function crash(){
   if (state.mode !== 'playing') return;
   state.mode = 'over';
   shipPivot.visible = false;
+  
+  // 音乐淡出
+  Sound.fadeBGM(0.05, 1.5);
 
   createExplosion(shipPivot.position);
   Sound.explode();
