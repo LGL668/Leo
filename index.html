@@ -440,7 +440,8 @@ const bulletGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.0, 4); bulletGeo.rota
 const bulletMat = new THREE.MeshBasicMaterial({ color: 0xff4d4d, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
 
 /* 游戏状态 */
-const LIMIT_X = 4.7, LIMIT_Y = 3.3, PLACE_R = 5.0;
+// 扩大移动范围和生成范围，让飞船能到达屏幕最下方
+const LIMIT_X = 6.0, LIMIT_Y = 5.0, PLACE_R = 5.0;
 const obstacles = []; const orbs = []; const powerups = []; const bullets = [];
 let scrollSpeed = 0; let pointerActive = false; let pointerTargetX = 0, pointerTargetY = 0; let prevShipX = 0, prevShipY = 0;
 
@@ -469,7 +470,7 @@ function spawnObstacle(){
 
 function spawnOrb(){
   const g = new THREE.Group(); g.add(new THREE.Mesh(orbGlowGeo, orbGlowMat)); const core = new THREE.Mesh(orbCoreGeo, orbCoreMat); g.add(core);
-  const a = Math.random() * Math.PI * 2; const r = Math.sqrt(Math.random()) * 4.2; const localX = Math.cos(a)*r; const localY = Math.sin(a)*r; const z = -130 - Math.random()*22;
+  const a = Math.random() * Math.PI * 2; const r = Math.sqrt(Math.random()) * PLACE_R; const localX = Math.cos(a)*r; const localY = Math.sin(a)*r; const z = -130 - Math.random()*22;
   const center = getCurveOffset(z); g.position.set(center.x + localX, center.y + localY, z);
   scene.add(g); orbs.push({ mesh:g, core, localX, localY });
 }
@@ -486,7 +487,7 @@ function spawnPowerup(){
   const glowMat = new THREE.MeshBasicMaterial({ color: mesh.material.color, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false });
   g.add(new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 12), glowMat));
   
-  const a = Math.random() * Math.PI * 2; const r = Math.sqrt(Math.random()) * 4.0; const localX = Math.cos(a)*r; const localY = Math.sin(a)*r; const z = -130 - Math.random()*22;
+  const a = Math.random() * Math.PI * 2; const r = Math.sqrt(Math.random()) * PLACE_R; const localX = Math.cos(a)*r; const localY = Math.sin(a)*r; const z = -130 - Math.random()*22;
   const center = getCurveOffset(z); g.position.set(center.x + localX, center.y + localY, z);
   scene.add(g); powerups.push({ mesh:g, core: mesh, type, localX, localY });
 }
@@ -496,7 +497,7 @@ function spawnWave(){
   const count = 2 + Math.round(Math.random() * (1 + t * 3));
   for (let i = 0; i < count; i++) spawnObstacle();
   if (Math.random() < 0.36) spawnOrb();
-  if (Math.random() < 0.15) spawnPowerup(); // 15% 概率生成道具
+  if (Math.random() < 0.15) spawnPowerup();
 }
 
 function spawnLogic(){
@@ -547,11 +548,10 @@ function updateWorld(dt){
     else { puWeapon.style.display = 'flex'; powerupHud.classList.add('active'); }
     
     // 自动开火
-    if (Math.floor(state.weaponTimer * 10) % 2 === 0) { // 5发/秒
+    if (Math.floor(state.weaponTimer * 10) % 2 === 0) {
       if (!state.lastShoot || time - state.lastShoot > 0.15) {
         state.lastShoot = time;
         const b = new THREE.Mesh(bulletGeo, bulletMat);
-        // 从飞船位置射出，但忽略 Y 轴倾斜，直接正向
         const offset0 = getCurveOffset(0);
         const T = getTangent(0);
         const up = new THREE.Vector3(0,1,0); const right = new THREE.Vector3().crossVectors(T, up).normalize(); const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
@@ -571,11 +571,10 @@ function updateWorld(dt){
   // 子弹更新
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
-    b.mesh.position.z -= 150 * dt; // 子弹速度
+    b.mesh.position.z -= 150 * dt; 
     const z = b.mesh.position.z;
     if (z < -200) { scene.remove(b.mesh); bullets.splice(i, 1); continue; }
     
-    // 子弹与障碍物碰撞
     const center = getCurveOffset(z);
     const T = getTangent(z);
     const up = new THREE.Vector3(0,1,0); const right = new THREE.Vector3().crossVectors(T, up).normalize(); const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
@@ -585,11 +584,10 @@ function updateWorld(dt){
       const o = obstacles[j];
       if (Math.abs(o.mesh.position.z - z) < 2.0) {
         if (Math.hypot(o.localX - b.localX, o.localY - b.localY) < o.radius + 0.5) {
-          // 击中
           createExplosion(o.mesh.position);
           scene.remove(o.mesh); obstacles.splice(j, 1);
           scene.remove(b.mesh); bullets.splice(i, 1);
-          Sound.explode(); // 使用小爆炸声或单独音效
+          Sound.explode();
           break;
         }
       }
@@ -605,11 +603,9 @@ function updateWorld(dt){
     o.mesh.position.copy(new THREE.Vector3(center.x, center.y, z).add(right.clone().multiplyScalar(o.localX)).add(realUp.clone().multiplyScalar(o.localY)));
     o.mesh.rotation.x += o.spin.x * dt; o.mesh.rotation.y += o.spin.y * dt; o.mesh.rotation.z += o.spin.z * dt;
 
-    // 碰撞判定（如果有护盾则免伤）
     if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
       if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < o.radius + 0.45) {
         if (state.shieldTimer > 0) {
-          // 护盾抵挡
           createExplosion(o.mesh.position);
           scene.remove(o.mesh); obstacles.splice(i, 1);
           Sound.explode();
@@ -649,19 +645,17 @@ function updateWorld(dt){
 
     if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
       if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.4){
-        // 拾取逻辑
         if (o.type === 'shield') {
-          state.shieldTimer = 5.0; // 5秒护盾
+          state.shieldTimer = 5.0;
           showToast('护盾激活', '#4da6ff');
           Sound.powerup('shield');
         } else if (o.type === 'weapon') {
-          state.weaponTimer = 8.0; // 8秒武器
+          state.weaponTimer = 8.0;
           showToast('武器系统上线', '#ff4d4d');
           Sound.powerup('weapon');
         } else if (o.type === 'nuke') {
           showToast('全屏消除！', '#b066ff');
           Sound.powerup('nuke');
-          // 全屏消除
           for (let j = obstacles.length - 1; j >= 0; j--) {
             createExplosion(obstacles[j].mesh.position);
             scene.remove(obstacles[j].mesh);
@@ -680,7 +674,11 @@ function updateCamera(dt){
   const up = new THREE.Vector3(0, 1, 0); const right = new THREE.Vector3().crossVectors(T, up).normalize(); const realUp = new THREE.Vector3().crossVectors(right, T).normalize();
   const shipWorld = new THREE.Vector3(offset0.x, offset0.y, 0).add(right.clone().multiplyScalar(state.shipX)).add(realUp.clone().multiplyScalar(state.shipY));
   shipPivot.position.copy(shipWorld); shipPivot.up.copy(realUp); shipPivot.lookAt(shipWorld.clone().add(T)); 
-  const camOffset = T.clone().multiplyScalar(-14); const camUpOffset = realUp.clone().multiplyScalar(4.0);
+  
+  // 摄像机拉远并降低，配合更大的移动范围
+  const camOffset = T.clone().multiplyScalar(-18); 
+  const camUpOffset = realUp.clone().multiplyScalar(3.5);
+  
   camera.position.copy(new THREE.Vector3(offset0.x, offset0.y, 0).add(camOffset).add(camUpOffset));
   camera.up.copy(realUp); camera.lookAt(new THREE.Vector3(offset0.x, offset0.y, 0).add(T.clone().multiplyScalar(30)));
 }
@@ -821,9 +819,10 @@ addEventListener('touchmove', e => {
   if (state.mode !== 'playing' || touchId === null) return;
   for (const t of e.changedTouches){
     if (t.identifier !== touchId) continue;
+    // 提高触摸灵敏度 (0.055)，确保能划到最边缘
     const dx = t.clientX - lastTX; const dy = t.clientY - lastTY; lastTX = t.clientX; lastTY = t.clientY;
-    pointerTargetX = clamp(pointerTargetX + dx * 0.045, -LIMIT_X, LIMIT_X);
-    pointerTargetY = clamp(pointerTargetY - dy * 0.045, -LIMIT_Y, LIMIT_Y);
+    pointerTargetX = clamp(pointerTargetX + dx * 0.055, -LIMIT_X, LIMIT_X);
+    pointerTargetY = clamp(pointerTargetY - dy * 0.055, -LIMIT_Y, LIMIT_Y);
     pointerActive = true;
   }
   e.preventDefault();
