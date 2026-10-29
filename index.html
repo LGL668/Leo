@@ -440,8 +440,8 @@ const bulletGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.0, 4); bulletGeo.rota
 const bulletMat = new THREE.MeshBasicMaterial({ color: 0xff4d4d, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
 
 /* 游戏状态 */
-// 扩大移动范围和生成范围，让飞船能到达屏幕最下方
-const LIMIT_X = 6.0, LIMIT_Y = 5.0, PLACE_R = 5.0;
+// 【关键修改】大幅放宽限制，确保飞船能飞到屏幕最边缘
+const LIMIT_X = 7.0, LIMIT_Y = 6.0, PLACE_R = 5.0;
 const obstacles = []; const orbs = []; const powerups = []; const bullets = [];
 let scrollSpeed = 0; let pointerActive = false; let pointerTargetX = 0, pointerTargetY = 0; let prevShipX = 0, prevShipY = 0;
 
@@ -627,7 +627,8 @@ function updateWorld(dt){
     o.core.rotation.x += 2.2 * dt; o.core.rotation.y += 3.0 * dt;
 
     if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
-      if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.35){
+      // 放大拾取判定到 1.6
+      if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.6){
         state.score += 50; Sound.pickup(); scene.remove(o.mesh); orbs.splice(i, 1); continue;
       }
     }
@@ -644,7 +645,8 @@ function updateWorld(dt){
     o.core.rotation.x += 2.0 * dt; o.core.rotation.y += 2.5 * dt;
 
     if (state.mode === 'playing' && prevZ < 0 && o.mesh.position.z >= 0){
-      if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.4){
+      // 放大拾取判定到 1.6
+      if (Math.hypot(o.localX - state.shipX, o.localY - state.shipY) < 1.6){
         if (o.type === 'shield') {
           state.shieldTimer = 5.0;
           showToast('护盾激活', '#4da6ff');
@@ -675,9 +677,9 @@ function updateCamera(dt){
   const shipWorld = new THREE.Vector3(offset0.x, offset0.y, 0).add(right.clone().multiplyScalar(state.shipX)).add(realUp.clone().multiplyScalar(state.shipY));
   shipPivot.position.copy(shipWorld); shipPivot.up.copy(realUp); shipPivot.lookAt(shipWorld.clone().add(T)); 
   
-  // 摄像机拉远并降低，配合更大的移动范围
-  const camOffset = T.clone().multiplyScalar(-18); 
-  const camUpOffset = realUp.clone().multiplyScalar(3.5);
+  // 【关键修改】降低摄像机高度，拉近视角，消除底部的深度盲区
+  const camOffset = T.clone().multiplyScalar(-16); 
+  const camUpOffset = realUp.clone().multiplyScalar(2.0);
   
   camera.position.copy(new THREE.Vector3(offset0.x, offset0.y, 0).add(camOffset).add(camUpOffset));
   camera.up.copy(realUp); camera.lookAt(new THREE.Vector3(offset0.x, offset0.y, 0).add(T.clone().multiplyScalar(30)));
@@ -819,10 +821,10 @@ addEventListener('touchmove', e => {
   if (state.mode !== 'playing' || touchId === null) return;
   for (const t of e.changedTouches){
     if (t.identifier !== touchId) continue;
-    // 提高触摸灵敏度 (0.055)，确保能划到最边缘
+    // 提高触摸灵敏度，确保能划到最边缘
     const dx = t.clientX - lastTX; const dy = t.clientY - lastTY; lastTX = t.clientX; lastTY = t.clientY;
-    pointerTargetX = clamp(pointerTargetX + dx * 0.055, -LIMIT_X, LIMIT_X);
-    pointerTargetY = clamp(pointerTargetY - dy * 0.055, -LIMIT_Y, LIMIT_Y);
+    pointerTargetX = clamp(pointerTargetX + dx * 0.06, -LIMIT_X, LIMIT_X);
+    pointerTargetY = clamp(pointerTargetY - dy * 0.06, -LIMIT_Y, LIMIT_Y);
     pointerActive = true;
   }
   e.preventDefault();
