@@ -21,29 +21,27 @@
   .hidden{display:none !important}
 
   /* 通用按钮 */
-  .btn{background:linear-gradient(135deg, var(--pink), var(--light-pink)); color:#fff; border:none; padding:12px 24px; border-radius:12px; font-size:15px; font-weight:bold; cursor:pointer; transition:transform 0.1s, box-shadow 0.2s; box-shadow:0 4px 10px rgba(255, 107, 158, 0.3);}
+  .btn{background:linear-gradient(135deg, var(--pink), var(--light-pink)); color:#fff; border:none; padding:12px 24px; border-radius:12px; font-size:15px; font-weight:bold; cursor:pointer; transition:transform 0.1s, box-shadow 0.2s; box-shadow:0 4px 10px rgba(255, 107, 158, 0.3); display:flex; justify-content:center; align-items:center;}
   .btn:active{transform:scale(0.96)}
+  .btn:disabled{opacity:0.6; cursor:not-allowed;}
   .btn-outline{background:transparent; border:1.5px solid var(--border); color:var(--pink); box-shadow: none;}
   .btn-outline:hover{background:rgba(255,107,158,0.05); border-color:var(--pink);}
 
   /* ================= 登录界面 ================= */
   #loginScreen { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:100;}
   .login-card { background:var(--card-bg); padding:40px; border-radius:24px; width:90%; max-width:400px; border:1px solid #fff; box-shadow:0 15px 35px rgba(255, 107, 158, 0.15); text-align:center; backdrop-filter: blur(10px);}
-  
   .login-title { font-size:32px; font-weight:900; letter-spacing:2px; margin-bottom:10px; background:linear-gradient(90deg, var(--pink), var(--purple)); -webkit-background-clip:text; background-clip:text; color:transparent;}
   .login-subtitle { font-size:13px; color:var(--text-sub); margin-bottom:30px;}
-  
   .input-group { margin-bottom:18px; text-align:left;}
   .input-group label { display:block; font-size:13px; color:var(--text-sub); margin-bottom:8px; font-weight:bold;}
-  .input-group input { width:100%; padding:14px 15px; border-radius:12px; background:#fff; border:1.5px solid var(--border); color:var(--text); font-size:15px; outline:none; transition:border 0.2s, box-shadow 0.2s;}
-  .input-group input:focus { border-color:var(--pink); box-shadow:0 0 10px rgba(255, 107, 158, 0.1);}
+  .input-group input { width:100%; padding:14px 15px; border-radius:12px; background:#fff; border:1.5px solid var(--border); color:var(--text); font-size:15px; outline:none;}
+  .input-group input:focus { border-color:var(--pink);}
   .login-btn { width:100%; margin-top:10px; padding:14px; font-size:16px;}
   .switch-text { margin-top:20px; font-size:13px; color:var(--text-sub); cursor:pointer;}
   .switch-text:hover { color:var(--pink);}
 
   /* ================= 主应用界面 ================= */
   #appScreen { display:flex; flex-direction:column; height:100%; width:100%; max-width:800px; margin:0 auto;}
-  
   header { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); backdrop-filter: blur(10px); border-radius: 0 0 16px 16px;}
   .user-info { display:flex; align-items:center; gap:12px;}
   .avatar { width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg, var(--pink), var(--purple)); display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; box-shadow:0 2px 8px rgba(179, 136, 255, 0.4);}
@@ -58,8 +56,6 @@
   .diary-card-title { font-size:18px; font-weight:bold; margin-bottom:8px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .diary-card-date { font-size:12px; color:var(--pink); margin-bottom:12px; font-weight:600;}
   .diary-card-content { font-size:14px; color:var(--text-sub); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.6; margin-bottom: 10px;}
-  
-  /* 卡片中的缩略图 */
   .diary-card-img { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 5px;}
 
   /* 悬浮添加按钮 */
@@ -78,6 +74,11 @@
   .editor-date { font-size:13px; color:var(--pink); margin-bottom:15px; padding-bottom:15px; border-bottom:1px dashed var(--border); font-weight:bold;}
   .editor-textarea { flex:1; min-height: 150px; background:transparent; border:none; color:var(--text); font-size:16px; line-height:1.8; outline:none; resize:none; font-family:inherit;}
   .editor-textarea::placeholder { color:#b0a4ab; }
+
+  /* AI 工具按钮区 */
+  .ai-tools { margin-top: 15px; display: flex; gap: 10px;}
+  .ai-btn { background: linear-gradient(135deg, #a88beb, #f8ceec); color: white; box-shadow: 0 4px 10px rgba(168, 139, 235, 0.3); border: none; padding: 10px 20px; font-size: 14px;}
+  .ai-btn:disabled { background: #ccc; box-shadow: none; }
 
   /* 图片上传区域 */
   .upload-section { margin-top: 20px; padding-top: 20px; border-top: 1px dashed var(--border);}
@@ -144,6 +145,11 @@
     <div class="editor-date" id="editDate"></div>
     <textarea class="editor-textarea" id="editContent" placeholder="记录下今天让你心动的故事..."></textarea>
     
+    <!-- AI 工具按钮 -->
+    <div class="ai-tools">
+      <button class="btn ai-btn" id="aiPolishBtn" onclick="aiPolishDiary()">✨ AI 润色</button>
+    </div>
+
     <!-- 图片上传与预览 -->
     <div class="upload-section">
       <label class="upload-btn">
@@ -163,10 +169,15 @@
 </div>
 
 <script>
+  // ================= 核心配置 =================
+  // 这里已经填入了你的 Vercel 代理地址，无需改动
+  const VERCEL_PROXY_URL = 'https://leo-pgxa.vercel.app/api/deepseek'; 
+  // ============================================
+
   let isLoginMode = true; 
   let currentUser = null; 
   let currentDiaryId = null; 
-  let currentImageBase64 = null; // 用于暂存当前正在编辑的图片
+  let currentImageBase64 = null; 
 
   document.addEventListener('DOMContentLoaded', () => {
     const savedUser = localStorage.getItem('diary_currentUser');
@@ -252,9 +263,9 @@
 
   function openEditor(id = null) {
     currentDiaryId = id;
-    currentImageBase64 = null; // 重置图片状态
+    currentImageBase64 = null; 
     document.getElementById('imagePreviewContainer').classList.add('hidden');
-    document.getElementById('imageInput').value = ''; // 清空 input
+    document.getElementById('imageInput').value = ''; 
     
     const panel = document.getElementById('editorPanel');
     
@@ -264,8 +275,6 @@
         document.getElementById('editTitle').value = diary.title;
         document.getElementById('editContent').value = diary.content;
         document.getElementById('editDate').innerText = `记录于: ${diary.date}`;
-        
-        // 加载已有图片
         if (diary.image) {
           currentImageBase64 = diary.image;
           document.getElementById('imagePreview').src = diary.image;
@@ -288,7 +297,54 @@
     currentImageBase64 = null;
   }
 
-  // ================= 处理图片上传与压缩 =================
+  // ================= AI 润色核心逻辑 =================
+  async function aiPolishDiary() {
+    const content = document.getElementById('editContent').value.trim();
+    if (!content) {
+      alert('请先写点内容，再让 AI 帮你润色吧~');
+      return;
+    }
+
+    const btn = document.getElementById('aiPolishBtn');
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = '思考中...';
+
+    try {
+      const response = await fetch(VERCEL_PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'system',
+              content: '你是一个细腻的日记润色助手。请帮助用户润色日记，保持第一人称，语气温暖、真诚，不要过度抒情或总结人生。只输出润色后的正文，不要包含任何解释。'
+            },
+            { role: 'user', content: content },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`网络请求失败: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        document.getElementById('editContent').value = data.choices[0].message.content;
+      } else {
+        throw new Error(data.error?.message || 'AI 返回格式错误');
+      }
+    } catch (error) {
+      alert('AI 润色出错：' + error.message + '\n请确保 Vercel 环境变量已配置正确，且 DeepSeek 账号有余额。');
+    } finally {
+      btn.disabled = false;
+      btn.innerText = originalText;
+    }
+  }
+
+  // ================= 图片上传与压缩逻辑 =================
   function handleImageUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -297,9 +353,8 @@
     reader.onload = function(e) {
       const img = new Image();
       img.onload = function() {
-        // 使用 Canvas 压缩图片
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800; // 限制最大宽度
+        const MAX_WIDTH = 800; // 限制最大宽度，防止照片太大撑爆存储
         let width = img.width;
         let height = img.height;
 
@@ -313,7 +368,7 @@
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
 
-        // 压缩质量设为 0.7 (JPEG)
+        // 压缩质量设为 0.7
         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
         
         currentImageBase64 = compressedBase64;
@@ -350,7 +405,7 @@
       if (index !== -1) {
         diaries[index].title = title;
         diaries[index].content = content;
-        diaries[index].image = currentImageBase64; // 保存图片
+        diaries[index].image = currentImageBase64;
         diaries[index].date = dateStr; 
         diaries[index].timestamp = now.getTime();
       }
@@ -359,7 +414,7 @@
         id: Date.now(), 
         title: title,
         content: content,
-        image: currentImageBase64, // 保存图片
+        image: currentImageBase64,
         date: dateStr,
         timestamp: now.getTime()
       });
@@ -370,12 +425,12 @@
       closeEditor();
       renderDiaryList();
     } catch (error) {
-      // 捕获存储空间超限的错误
       alert('保存失败！可能是因为照片太多导致手机存储空间已满。请尝试删除一些旧日记或照片。');
       console.error(error);
     }
   }
 
+  // 防止 XSS 攻击
   function escapeHTML(str) {
     if (!str) return '';
     return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
