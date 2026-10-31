@@ -3,668 +3,302 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>极速狂飙 · 赛博街道</title>
+<title>心动日记 · 记录美好瞬间</title>
 <style>
-  :root{ --cyan:#3ee8ff; --pink:#ff3d8b; --mint:#5cffc0; --purple:#b066ff; --red:#ff4d4d; --blue:#4da6ff; }
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{width:100%;height:100%;overflow:hidden;background:#02030a;
-    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
-    color:#e8f6ff;user-select:none}
+  :root{ 
+    /* 梦幻渐变背景 */
+    --bg: linear-gradient(135deg, #ffeef8 0%, #e6e6fa 100%);
+    /* 纯白卡片，带一点点透明度 */
+    --card-bg: rgba(255, 255, 255, 0.85); 
+    --text: #333333; 
+    --text-sub: #888888; 
+    --pink: #ff6b9e; 
+    --light-pink: #ff9ebf;
+    --purple: #b388ff;
+    --border: rgba(255, 107, 158, 0.2);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  body{background: var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; background-attachment: fixed;}
   
-  #game{position:fixed;inset:0; z-index: 1;}
-  #game canvas{display:block}
+  /* 隐藏类 */
+  .hidden{display:none !important}
 
-  /* HUD 面板 */
-  .hud{position:fixed;inset:0;pointer-events:none;padding:22px 26px;
-       display:flex;justify-content:space-between;align-items:flex-start;
-       font-variant-numeric:tabular-nums; z-index: 10;}
-  .hud-left { display: flex; flex-direction: column; gap: 8px; }
-  .hud .label{font-size:11px;letter-spacing:4px;opacity:.45;margin-bottom:2px}
+  /* 通用按钮 */
+  .btn{background:linear-gradient(135deg, var(--pink), var(--light-pink)); color:#fff; border:none; padding:12px 24px; border-radius:12px; font-size:15px; font-weight:bold; cursor:pointer; transition:transform 0.1s, box-shadow 0.2s; box-shadow:0 4px 10px rgba(255, 107, 158, 0.3);}
+  .btn:active{transform:scale(0.96)}
+  .btn-outline{background:transparent; border:1.5px solid var(--border); color:var(--pink); box-shadow: none;}
+  .btn-outline:hover{background:rgba(255,107,158,0.05); border-color:var(--pink);}
+
+  /* ================= 登录界面 ================= */
+  #loginScreen { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:100;}
+  .login-card { background:var(--card-bg); padding:40px; border-radius:24px; width:90%; max-width:400px; border:1px solid #fff; box-shadow:0 15px 35px rgba(255, 107, 158, 0.15); text-align:center; backdrop-filter: blur(10px);}
   
-  .hud .score{font-size:36px;font-weight:800;letter-spacing:2px;color:var(--cyan);
-              text-shadow:0 0 22px rgba(62,232,255,.75);}
-  .hud .right{text-align:right}
-  .hud .right .val{font-size:18px;font-weight:700;color:#8fe3ff;opacity:.85}
-
-  #speedHud { position: fixed; bottom: 20px; right: 20px; font-size: 28px; font-weight: 900; color: var(--pink); text-shadow: 0 0 15px var(--pink); opacity: 0; transition: opacity 0.3s; z-index: 10; pointer-events: none; font-style: italic;}
-  #speedHud.active { opacity: 1; }
-  #speedHud .unit { font-size: 14px; color: #ff8ab8; }
-
-  .powerup-hud { display: flex; gap: 15px; margin-top: 10px; opacity: 0; transition: opacity 0.3s; }
-  .powerup-hud.active { opacity: 1; }
-  .pu-icon { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: bold; padding: 4px 10px; border-radius: 8px; background: rgba(0,0,0,0.5); }
-  .pu-icon.shield { color: var(--blue); border: 1px solid rgba(77,166,255,.3); text-shadow: 0 0 10px var(--blue); }
-  .pu-icon.weapon { color: var(--red); border: 1px solid rgba(255,77,77,.3); text-shadow: 0 0 10px var(--red); }
-  .pu-icon.boost { color: #ffea00; border: 1px solid rgba(255,234,0,.3); text-shadow: 0 0 10px #ffea00; }
-
-  /* 遮罩层 */
-  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#02030a; transition:opacity .3s ease; z-index: 100;}
-  .overlay.hidden{opacity:0;pointer-events:none}
+  /* 心动日记 Logo 字 */
+  .login-title { font-size:32px; font-weight:900; letter-spacing:2px; margin-bottom:10px; 
+    background:linear-gradient(90deg, var(--pink), var(--purple)); 
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .login-subtitle { font-size:13px; color:var(--text-sub); margin-bottom:30px;}
   
-  .card{text-align:center;padding:40px 46px;max-width:480px;position:relative;}
+  .input-group { margin-bottom:18px; text-align:left;}
+  .input-group label { display:block; font-size:13px; color:var(--text-sub); margin-bottom:8px; font-weight:bold;}
+  .input-group input { width:100%; padding:14px 15px; border-radius:12px; background:#fff; border:1.5px solid var(--border); color:var(--text); font-size:15px; outline:none; transition:border 0.2s, box-shadow 0.2s;}
+  .input-group input:focus { border-color:var(--pink); box-shadow:0 0 10px rgba(255, 107, 158, 0.1);}
+  .login-btn { width:100%; margin-top:10px; padding:14px; font-size:16px;}
+  .switch-text { margin-top:20px; font-size:13px; color:var(--text-sub); cursor:pointer;}
+  .switch-text:hover { color:var(--pink);}
 
-  .title{font-size:46px;font-weight:900;letter-spacing:10px;font-style:italic;
-    background:linear-gradient(90deg,#ff3d8b,#3ee8ff);
-    -webkit-background-clip:text;background-clip:text;color:transparent;}
-  .subtitle{font-size:11px;letter-spacing:9px;opacity:.45;margin-top:8px;text-transform:uppercase}
-
-  .tips{margin:30px 0 34px;font-size:14px;line-height:2.1;opacity:.75}
-  .tips b{color:var(--cyan);font-weight:600}
-  .key{display:inline-block;padding:1px 9px;border:1px solid rgba(255,255,255,.22);
-       border-radius:5px;font-size:12px;margin:0 2px;opacity:.9}
-
-  .btn-group{display:flex;gap:15px;justify-content:center;margin-top:10px;flex-wrap:wrap;}
+  /* ================= 主应用界面 ================= */
+  #appScreen { display:flex; flex-direction:column; height:100%; width:100%; max-width:800px; margin:0 auto;}
   
-  .btn{pointer-events:auto;cursor:pointer;border:none;border-radius:999px;
-    padding:16px 40px;font-size:16px;font-weight:800;letter-spacing:3px;
-    color:#001018;background:linear-gradient(135deg,#ff3d8b,#3ee8ff);
-    transition:transform .1s;font-family:inherit;}
-  .btn:active{transform:scale(.95)}
-
-  .btn-secondary{background:transparent;border:1px solid rgba(62,232,255,.35);color:#8fe3ff;}
-  .btn-reward {background: linear-gradient(135deg, #ffea00, #ff8a3d); color: #fff; padding: 14px 28px; font-size: 14px;}
-
-  .version { font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,0.3); margin-top: 24px; font-family: monospace; }
-  .bigscore{font-size:68px;font-weight:900;color:#fff;line-height:1;margin:16px 0 8px;font-style:italic;}
-  .best{font-size:13px;letter-spacing:3px;opacity:.55;margin-bottom:30px}
+  /* 顶部导航 */
+  header { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); backdrop-filter: blur(10px); border-radius: 0 0 16px 16px;}
+  .user-info { display:flex; align-items:center; gap:12px;}
+  .avatar { width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg, var(--pink), var(--purple)); display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; box-shadow:0 2px 8px rgba(179, 136, 255, 0.4);}
+  .username { font-weight:bold; color:var(--text); font-size:16px;}
   
-  #flash{position:fixed;inset:0;background:#ff2d6f;opacity:0;pointer-events:none;transition:opacity .1s ease; z-index: 50;}
-  #nukeFlash{position:fixed;inset:0;background:#b066ff;opacity:0;pointer-events:none;transition:opacity .3s ease; z-index: 49;}
+  /* 日记列表 */
+  .list-container { flex:1; overflow-y:auto; padding:20px;}
+  .empty-state { text-align:center; color:var(--text-sub); margin-top:50px; font-size:15px;}
+  .diary-card { background:var(--card-bg); padding:22px; border-radius:16px; margin-bottom:16px; border:1px solid #fff; cursor:pointer; transition:transform 0.2s, box-shadow 0.2s; box-shadow:0 4px 15px rgba(0,0,0,0.03); backdrop-filter: blur(5px);}
+  .diary-card:hover { transform:translateY(-3px); box-shadow:0 8px 25px rgba(255, 107, 158, 0.15);}
+  .diary-card-title { font-size:18px; font-weight:bold; margin-bottom:8px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .diary-card-date { font-size:12px; color:var(--pink); margin-bottom:12px; font-weight:600;}
+  .diary-card-content { font-size:14px; color:var(--text-sub); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.6;}
 
-  .toast { position: fixed; left: 50%; top: 30%; transform: translate(-50%, -50%); font-size: 28px; font-weight: 900; letter-spacing: 5px; pointer-events: none; opacity: 0; z-index: 40; text-shadow: 0 0 30px currentColor; font-style: italic;}
-  @keyframes toastAnim { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.8); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); } 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -70%) scale(0.9); } }
+  /* 悬浮添加按钮 */
+  .fab { position:fixed; bottom:30px; right:30px; width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg, var(--pink), var(--light-pink)); color:#fff; font-size:36px; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 20px rgba(255, 107, 158, 0.4); cursor:pointer; z-index:10; transition:transform 0.2s;}
+  .fab:active { transform:scale(0.9);}
+  @media (min-width:800px) { .fab { right:calc(50% - 370px); } }
 
-  .qr-placeholder { width: 110px; height: 110px; margin: 15px auto; background: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; cursor: pointer;}
-  .qr-placeholder img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; z-index: 2; }
-  .heart-particle { position: fixed; pointer-events: none; z-index: 200; font-size: 24px; animation: fall linear forwards; }
-  @keyframes fall { 0% { transform: translateY(-50px) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translateY(100vh) rotate(360deg) scale(0.5); opacity: 0; } }
-
-  #errorLog { position: fixed; top: 0; left: 0; width: 100%; background: red; color: white; padding: 10px; font-size: 14px; z-index: 99999; display: none; }
+  /* ================= 编辑器全屏页 ================= */
+  #editorPanel { position:fixed; inset:0; background:var(--bg); z-index:200; display:flex; flex-direction:column; transform:translateY(100%); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);}
+  #editorPanel.active { transform:translateY(0);}
+  .editor-header { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); backdrop-filter: blur(10px);}
+  .editor-title-input { background:transparent; border:none; color:var(--text); font-size:20px; font-weight:bold; outline:none; width:60%;}
+  .editor-title-input::placeholder { color:#b0a4ab; }
+  .editor-body { flex:1; display:flex; flex-direction:column; padding:25px;}
+  .editor-textarea { flex:1; background:transparent; border:none; color:var(--text); font-size:16px; line-height:1.8; outline:none; resize:none; font-family:inherit;}
+  .editor-textarea::placeholder { color:#b0a4ab; }
+  .editor-date { font-size:13px; color:var(--pink); margin-bottom:15px; padding-bottom:15px; border-bottom:1px dashed var(--border); font-weight:bold;}
 </style>
 </head>
 <body>
 
-<div id="errorLog"></div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-<audio id="bgm" src="./bgm.mp3" loop preload="auto"></audio>
-
-<div id="game"></div>
-<div id="nukeFlash"></div>
-<div id="flash"></div>
-<div id="toast" class="toast"></div>
-<div id="speedHud">0 <span class="unit">km/h</span></div>
-
-<div class="hud" id="hud" style="display:none">
-  <div class="hud-left">
-    <div>
-      <div class="label">SCORE</div>
-      <div class="score" id="score">0</div>
+<!-- 登录/注册界面 -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-title">心动日记</div>
+    <div class="login-subtitle" id="loginSubtitle">登录以记录你的心动瞬间</div>
+    
+    <div class="input-group">
+      <label>账号</label>
+      <input type="text" id="usernameInput" placeholder="请输入账号" autocomplete="off">
     </div>
-    <div class="powerup-hud" id="powerupHud">
-      <div class="pu-icon shield" id="puShield" style="display:none;">🛡️ <span id="shieldTime">0</span>s</div>
-      <div class="pu-icon weapon" id="puWeapon" style="display:none;">🔫 <span id="weaponTime">0</span>s</div>
-      <div class="pu-icon boost" id="puBoost" style="display:none;">⚡ 氮气</div>
+    <div class="input-group">
+      <label>密码</label>
+      <input type="password" id="passwordInput" placeholder="请输入密码">
     </div>
-  </div>
-  <div class="right">
-    <div class="label">BEST</div>
-    <div class="val" id="bestHud">0</div>
+    
+    <button class="btn login-btn" id="submitBtn" onclick="handleAuth()">立即登录</button>
+    <div class="switch-text" id="switchModeBtn" onclick="toggleAuthMode()">没有账号？去注册</div>
   </div>
 </div>
 
-<div class="overlay" id="startScreen">
-  <div class="card">
-    <div class="title">极速狂飙</div>
-    <div class="subtitle">Cyberpunk Street</div>
-    <div class="tips">
-      移动<b>鼠标</b> 或 <span class="key">A</span><span class="key">D</span> <span class="key">←→</span> 左右漂移<br>
-      躲避<b style="color:#ff3d8b">红色警告路障</b>，收集<b style="color:#ffea00">发光金币</b>与<b style="color:#b066ff">强化道具</b><br>
-      压上<b style="color:#3ee8ff">蓝色加速带</b>，体验极限推背感！
+<!-- 主应用界面 -->
+<div id="appScreen" class="hidden">
+  <header>
+    <div class="user-info">
+      <div class="avatar" id="userAvatar">U</div>
+      <div class="username" id="displayUsername">用户</div>
     </div>
-    <div class="btn-group">
-      <button class="btn" onclick="startEngine()">点火起步</button>
-      <button class="btn btn-reward" onclick="showReward()">赞赏 ☕</button>
+    <div class="header-actions">
+      <button class="btn btn-outline" onclick="logout()">退出登录</button>
     </div>
-    <div class="version">v5.7 高亮路障版</div>
-  </div>
+  </header>
+  
+  <main class="list-container" id="diaryList">
+    <!-- 日记列表动态渲染 -->
+  </main>
+
+  <!-- 写日记悬浮按钮 -->
+  <div class="fab" onclick="openEditor()">+</div>
 </div>
 
-<div class="overlay hidden" id="overScreen">
-  <div class="card">
-    <div class="subtitle">比赛结束</div>
-    <div class="bigscore" id="finalScore">0</div>
-    <div class="best" id="finalBest">最高分 0</div>
-    <div class="btn-group">
-      <button class="btn" onclick="restartGame()">再来一圈</button>
-      <button class="btn btn-secondary" onclick="exitToMenu()">返回车库</button>
-      <button class="btn btn-reward" onclick="showReward()">赞赏 ☕</button>
-    </div>
+<!-- 日记编辑器 (全屏抽屉) -->
+<div id="editorPanel">
+  <div class="editor-header">
+    <input type="text" class="editor-title-input" id="editTitle" placeholder="写个心动的标题...">
+    <button class="btn" onclick="saveDiary()">保存</button>
   </div>
-</div>
-
-<div class="overlay hidden" id="rewardModal" style="z-index: 200; background: rgba(2,3,10,0.95);">
-  <div class="card">
-    <div class="subtitle" style="color: var(--pink);">THANK YOU</div>
-    <div style="font-size: 20px; font-weight: bold; margin: 15px 0 5px;">感谢您的支持！</div>
-    <div style="font-size: 13px; opacity: 0.6; margin-bottom: 10px;">本游戏完全免费，您的支持是我更新的动力</div>
-    <div class="qr-placeholder" onclick="closeReward()">
-      <img src="./qrcode.png" alt="赞赏码" onerror="this.style.display='none'">
-    </div>
-    <div style="font-size: 12px; opacity: 0.4; margin-bottom: 20px;">点击图片或背景关闭</div>
-    <button class="btn btn-secondary" onclick="closeReward()" style="padding: 10px 30px; font-size: 13px;">关闭</button>
+  <div class="editor-body">
+    <div class="editor-date" id="editDate"></div>
+    <textarea class="editor-textarea" id="editContent" placeholder="记录下今天让你心动的故事..."></textarea>
+  </div>
+  <div style="padding:20px; text-align:center; background:var(--card-bg); backdrop-filter: blur(10px);">
+    <button class="btn btn-outline" style="width:100%; padding:15px;" onclick="closeEditor()">取消返回</button>
   </div>
 </div>
 
 <script>
-  window.onerror = function(msg) {
-    var errBox = document.getElementById('errorLog');
-    errBox.style.display = 'block';
-    errBox.innerText = "运行错误: " + msg;
-  };
+  // ================= 数据存储与状态 =================
+  let isLoginMode = true; 
+  let currentUser = null; 
+  let currentDiaryId = null; 
 
-  let is3DLoaded = false;
-  
-  window.showReward = function() {
-    document.getElementById('rewardModal').classList.remove('hidden');
-    for (let i = 0; i < 20; i++) {
-      const el = document.createElement('div'); el.className = 'heart-particle';
-      el.innerText = ['❤️', '💖', '✨', '🌟'][Math.floor(Math.random() * 4)];
-      el.style.left = `${Math.random() * 100}vw`; el.style.top = `-50px`;
-      el.style.animation = `fall ${2 + Math.random()*2}s linear ${Math.random()*1.5}s forwards`;
-      document.body.appendChild(el); setTimeout(() => el.remove(), 4000);
+  document.addEventListener('DOMContentLoaded', () => {
+    const savedUser = localStorage.getItem('diary_currentUser');
+    if (savedUser) {
+      currentUser = savedUser;
+      enterApp();
     }
-  }
-  window.closeReward = function() {
-    document.getElementById('rewardModal').classList.add('hidden');
+  });
+
+  function toggleAuthMode() {
+    isLoginMode = !isLoginMode;
+    document.getElementById('loginSubtitle').innerText = isLoginMode ? '登录以记录你的心动瞬间' : '创建一个新账号，开启心动之旅';
+    document.getElementById('submitBtn').innerText = isLoginMode ? '立即登录' : '立即注册';
+    document.getElementById('switchModeBtn').innerText = isLoginMode ? '没有账号？去注册' : '已有账号？去登录';
+    document.getElementById('passwordInput').value = ''; 
   }
 
-  window.exitToMenu = function() {
-    document.getElementById('overScreen').classList.add('hidden');
-    document.getElementById('hud').style.display = 'none';
-    document.getElementById('startScreen').classList.remove('hidden');
-    if (window.reset3D) window.reset3D();
+  function handleAuth() {
+    const user = document.getElementById('usernameInput').value.trim();
+    const pass = document.getElementById('passwordInput').value.trim();
+
+    if (!user || !pass) {
+      alert('请输入完整的账号和密码！');
+      return;
+    }
+
+    let users = JSON.parse(localStorage.getItem('diary_users') || '{}');
+
+    if (isLoginMode) {
+      if (!users[user]) { alert('账号不存在，请先注册！'); return; }
+      if (users[user] !== pass) { alert('密码错误！'); return; }
+    } else {
+      if (users[user]) { alert('该账号已被注册，请换一个！'); return; }
+      users[user] = pass;
+      localStorage.setItem('diary_users', JSON.stringify(users));
+      alert('注册成功，已自动登录！');
+    }
+
+    currentUser = user;
+    localStorage.setItem('diary_currentUser', currentUser);
+    enterApp();
   }
 
-  window.startEngine = function() {
-    document.getElementById('startScreen').classList.add('hidden');
-    document.getElementById('hud').style.display = 'flex';
+  function logout() {
+    currentUser = null;
+    localStorage.removeItem('diary_currentUser');
+    document.getElementById('appScreen').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('usernameInput').value = '';
+    document.getElementById('passwordInput').value = '';
+  }
+
+  function enterApp() {
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('appScreen').classList.remove('hidden');
+    document.getElementById('displayUsername').innerText = currentUser;
+    document.getElementById('userAvatar').innerText = currentUser.charAt(0).toUpperCase();
+    renderDiaryList();
+  }
+
+  function getDiaries() {
+    return JSON.parse(localStorage.getItem(`diary_data_${currentUser}`) || '[]');
+  }
+
+  function saveDiaries(diaries) {
+    localStorage.setItem(`diary_data_${currentUser}`, JSON.stringify(diaries));
+  }
+
+  function renderDiaryList() {
+    const diaries = getDiaries();
+    const listContainer = document.getElementById('diaryList');
+
+    if (diaries.length === 0) {
+      listContainer.innerHTML = `<div class="empty-state">这里空空如也，点击右下角的 + 记录第一篇心动日记吧！</div>`;
+      return;
+    }
+
+    diaries.sort((a, b) => b.timestamp - a.timestamp);
+
+    listContainer.innerHTML = diaries.map(d => `
+      <div class="diary-card" onclick="openEditor(${d.id})">
+        <div class="diary-card-title">${escapeHTML(d.title) || '无标题的心动'}</div>
+        <div class="diary-card-date">${d.date}</div>
+        <div class="diary-card-content">${escapeHTML(d.content) || '暂无内容...'}</div>
+      </div>
+    `).join('');
+  }
+
+  function openEditor(id = null) {
+    currentDiaryId = id;
+    const panel = document.getElementById('editorPanel');
     
-    try {
-      let bgm = document.getElementById('bgm');
-      bgm.volume = 0.25; bgm.currentTime = 0; bgm.play().catch(e=>console.log('BGM播放被浏览器拦截'));
-    } catch(e){}
-
-    if (!is3DLoaded) {
-      if (typeof THREE === 'undefined') {
-        alert("3D引擎加载失败！请检查网络。");
-        return;
-      }
-      if (window.init3DGame) {
-        window.init3DGame();
-        is3DLoaded = true;
+    if (id) {
+      const diary = getDiaries().find(d => d.id === id);
+      if (diary) {
+        document.getElementById('editTitle').value = diary.title;
+        document.getElementById('editContent').value = diary.content;
+        document.getElementById('editDate').innerText = `记录于: ${diary.date}`;
       }
     } else {
-      if (window.restartGame) window.restartGame();
+      document.getElementById('editTitle').value = '';
+      document.getElementById('editContent').value = '';
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+      document.getElementById('editDate').innerText = `新建于: ${dateStr}`;
     }
-  }
-</script>
-
-<script>
-(function() {
-  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
-  const damp  = (k,dt)=>1-Math.exp(-k*dt);
-  const rnd   = (a,b)=>a+Math.random()*(b-a);
-
-  let scene, camera, renderer;
-  let car, carPivot, shieldMesh;
-  let road, laneLines = [], sideObj = [], buildings = [];
-  
-  let obstacles = [], orbs = [], powerups = [], bullets = [], boostPads = [], explosions = [];
-  
-  const LIMIT_X = 7.0; 
-  let velocityX = 0;
-  const MAX_LATERAL_SPEED = 35;
-  const ACCELERATION = 120;
-  const FRICTION = 0.85;
-  let pointerActive = false; let pointerTargetX = 0; 
-  
-  let shakeTime = 0, shakeIntensity = 0, hitStopTime = 0;
-  const BASE_FOV = 75;
-  
-  const state = {
-    mode: 'ready', speed: 70, baseSpeed: 70, maxSpeed: 160, elapsed: 0, traveled: 0, nextSpawn: 0, score: 0,
-    shipX: 0, shipY: 0.5, 
-    best: (() => { try { return +(localStorage.getItem('racerunner_best') || 0); } catch(e) { return 0; } })(),
-    shieldTimer: 0, weaponTimer: 0, boostTimer: 0
-  };
-
-  function triggerShake(time, intensity) { shakeTime = Math.max(shakeTime, time); shakeIntensity = Math.max(shakeIntensity, intensity); }
-  function triggerHitStop(time) { hitStopTime = Math.max(hitStopTime, time); }
-
-  const Sound = {
-    ctx:null, master:null, sfxGain:null, ready:false,
-    init(){
-      try {
-        if (!this.ctx) {
-          const AC = window.AudioContext || window.webkitAudioContext;
-          if (AC) {
-            this.ctx = new AC();
-            this.master = this.ctx.createGain(); this.master.gain.value = 0.6;
-            this.master.connect(this.ctx.destination);
-            this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = 0.9;
-            this.sfxGain.connect(this.master);
-            this.ready = true;
-          }
-        }
-        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-      } catch(e) {}
-    },
-    playSound(type){
-      if (!this.ready) return;
-      try {
-        const t = this.ctx.currentTime;
-        const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
-        if(type === 'pickup') { o.type = 'sine'; o.frequency.setValueAtTime(880, t); o.frequency.exponentialRampToValueAtTime(1760, t+0.1); g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.2); }
-        else if(type === 'explode') { o.type = 'sawtooth'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(30, t+0.5); g.gain.setValueAtTime(0.6, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.6); }
-        else if(type === 'shoot') { o.type = 'sawtooth'; o.frequency.setValueAtTime(1200, t); o.frequency.exponentialRampToValueAtTime(200, t+0.1); g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.1); }
-        o.connect(g); g.connect(this.sfxGain); o.start(t); o.stop(t+0.5);
-      } catch(e) {}
-    }
-  };
-
-  function getCurveOffset(z) { const totalZ = state.traveled - z; const x = Math.sin(totalZ * 0.0012) * 80 + Math.sin(totalZ * 0.0035) * 40; return new THREE.Vector3(x, 0, 0); }
-  function getTangent(z) { const totalZ = state.traveled - z; const dx = Math.cos(totalZ * 0.0012) * 80 * 0.0012 + Math.cos(totalZ * 0.0035) * 40 * 0.0035; return new THREE.Vector3(dx, 0, -1).normalize(); }
-
-  let DEBRIS_GEOS, DEBRIS_MATS, orbCoreGeo, orbRingGeo, orbRingMat, orbGlowGeo, orbGlowMat, puShieldGeo, puShieldMat, puWeaponGeo, puWeaponMat, puNukeGeo, puNukeMat, boostPadGeo, boostPadMat, bulletGeo, bulletMat;
-
-  window.init3DGame = function() {
-    Sound.init();
-    state.mode = 'playing'; state.elapsed = 0; state.speed = state.baseSpeed; state.traveled = 0; state.nextSpawn = 45; state.score = 0;
-    document.getElementById('score').textContent = '0'; document.getElementById('bestHud').textContent = state.best;
-
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0512); scene.fog = new THREE.FogExp2(0x0a0512, 0.004);
-
-    camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth/innerHeight, 0.1, 8000);
-    renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
-    document.getElementById('game').appendChild(renderer.domElement);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 1.8)); 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.5); keyLight.position.set(10, 20, 5); scene.add(keyLight);
-
-    // 【障碍物】橘红色的危险路障，带强烈自发光
-    DEBRIS_GEOS = [new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.CylinderGeometry(0.8, 0.8, 2, 6), new THREE.ConeGeometry(1, 2, 4)];
-    DEBRIS_MATS = [
-      new THREE.MeshStandardMaterial({ color: 0xff2200, emissive: 0xaa0000, emissiveIntensity: 1.0, roughness: 0.5, metalness: 0.2 }), 
-      new THREE.MeshStandardMaterial({ color: 0x551111, emissive: 0xff0000, emissiveIntensity: 0.6, roughness: 0.8, metalness: 0.8 })
-    ];
-    
-    // 【金币】亮黄色核心 + 旋转白色光环 + 大光晕
-    orbCoreGeo = new THREE.IcosahedronGeometry(0.6, 1); 
-    orbCoreMat = new THREE.MeshBasicMaterial({color: 0xffea00}); 
-    orbRingGeo = new THREE.TorusGeometry(0.9, 0.08, 8, 24);
-    orbRingMat = new THREE.MeshBasicMaterial({color: 0xffffff});
-    orbGlowGeo = new THREE.SphereGeometry(1.2, 16, 12); 
-    orbGlowMat = new THREE.MeshBasicMaterial({ color: 0xffea00, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending });
-    
-    // 【强化道具】高亮自发光 + 强对比度
-    puShieldGeo = new THREE.OctahedronGeometry(0.8, 0); puShieldMat = new THREE.MeshBasicMaterial({ color: 0x3ee8ff }); 
-    puWeaponGeo = new THREE.BoxGeometry(0.6, 0.6, 1.0); puWeaponMat = new THREE.MeshBasicMaterial({ color: 0xff3d8b }); 
-    puNukeGeo   = new THREE.TorusGeometry(0.6, 0.15, 8, 16); puNukeMat = new THREE.MeshBasicMaterial({ color: 0xb066ff }); 
-    
-    boostPadGeo = new THREE.PlaneGeometry(4, 10); 
-    boostPadMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-    
-    bulletGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.0, 4); bulletGeo.rotateX(Math.PI / 2);
-    bulletMat = new THREE.MeshBasicMaterial({ color: 0xff4d4d, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
-
-    const roadGeo = new THREE.PlaneGeometry(22, 3000); roadGeo.rotateX(-Math.PI / 2);
-    road = new THREE.Mesh(roadGeo, new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9, metalness: 0.2 }));
-    road.position.set(0, -0.1, -1000); scene.add(road);
-
-    const lineGeo = new THREE.PlaneGeometry(0.4, 4); lineGeo.rotateX(-Math.PI / 2);
-    const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
-    for(let i=0; i<60; i++) { const line = new THREE.Mesh(lineGeo, lineMat); scene.add(line); laneLines.push({ mesh: line, z: -i * 15 }); }
-
-    for(let i=0; i<60; i++) {
-        const guardGeo = new THREE.BoxGeometry(0.2, 0.6, 10);
-        const gL = new THREE.Mesh(guardGeo, new THREE.MeshBasicMaterial({ color: 0x3ee8ff }));
-        const gR = new THREE.Mesh(guardGeo, new THREE.MeshBasicMaterial({ color: 0xff3d8b }));
-        scene.add(gL); scene.add(gR);
-        const poleGeo = new THREE.BoxGeometry(0.3, 8, 0.3); const poleMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-        const bulbGeo = new THREE.BoxGeometry(0.8, 0.4, 2); const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffeeaa });
-        const pL = new THREE.Mesh(poleGeo, poleMat); const pR = new THREE.Mesh(poleGeo, poleMat);
-        const bL = new THREE.Mesh(bulbGeo, bulbMat); const bR = new THREE.Mesh(bulbGeo, bulbMat);
-        bL.position.set(-0.8, 4, 0); bR.position.set(0.8, 4, 0); pL.add(bL); pR.add(bR); scene.add(pL); scene.add(pR);
-        sideObj.push({ gL, gR, pL, pR, z: -i * 15 });
-    }
-
-    const bMats = [ 
-        new THREE.MeshLambertMaterial({ color: 0x050510, emissive: 0x001133 }), 
-        new THREE.MeshLambertMaterial({ color: 0x050510, emissive: 0x330011 }) 
-    ];
-    for(let i=0; i<40; i++) {
-        const isLeft = i % 2 === 0;
-        const bGeo = new THREE.BoxGeometry(rnd(6, 15), rnd(15, 60), rnd(10, 30));
-        const bMesh = new THREE.Mesh(bGeo, bMats[Math.floor(Math.random()*bMats.length)]);
-        scene.add(bMesh); buildings.push({ mesh: bMesh, z: -i * 30, xOff: isLeft ? rnd(-30, -18) : rnd(18, 30) });
-    }
-
-    carPivot = new THREE.Group(); scene.add(carPivot);
-    const g = new THREE.Group();
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff3d8b, metalness: 0.8, roughness: 0.2 });
-    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.5, roughness: 0.1 });
-    const neonMat = new THREE.MeshBasicMaterial({ color: 0x3ee8ff });
-    
-    const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.4, 4.5), bodyMat);
-    chassis.position.y = 0.6; g.add(chassis);
-
-    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 2.0), whiteMat);
-    cabin.position.set(0, 1.0, 0.2); g.add(cabin);
-
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 0.6), bodyMat);
-    wing.position.set(0, 1.2, 2.0); g.add(wing);
-    
-    const lightL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.1), neonMat); lightL.position.set(-0.7, 0.6, -2.25); g.add(lightL);
-    const lightR = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.1), neonMat); lightR.position.set(0.7, 0.6, -2.25); g.add(lightR);
-
-    const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
-    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
-    const wheelPositions = [
-      [-1.1, 0.4, -1.5], [1.1, 0.4, -1.5],
-      [-1.1, 0.4, 1.5], [1.1, 0.4, 1.5]
-    ];
-    wheelPositions.forEach(pos => {
-      const w = new THREE.Mesh(wheelGeo, wheelMat);
-      w.position.set(...pos);
-      w.rotation.z = Math.PI / 2; 
-      g.add(w);
-    });
-
-    const glow = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.05, 4.0), new THREE.MeshBasicMaterial({ color: 0x3ee8ff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending }));
-    glow.position.set(0, 0.2, 0); g.add(glow);
-    
-    car = g; carPivot.add(car);
-
-    shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(3.0, 16, 16), new THREE.MeshBasicMaterial({ color: 0x4da6ff, transparent: true, opacity: 0.2, wireframe: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-    shieldMesh.visible = false; car.add(shieldMesh);
-
-    animate();
+    panel.classList.add('active');
   }
 
-  window.reset3D = function() {
-    if(!scene) return;
-    state.mode = 'ready';
-    for (const o of obstacles) scene.remove(o.mesh); obstacles.length = 0;
-    for (const o of orbs) scene.remove(o.mesh); orbs.length = 0;
-    for (const o of powerups) scene.remove(o.mesh); powerups.length = 0;
-    for (const o of bullets) scene.remove(o.mesh); bullets.length = 0;
-    for (const o of boostPads) scene.remove(o.mesh); boostPads.length = 0;
-    for (const o of explosions) scene.remove(o.points); explosions.length = 0;
-    carPivot.visible = true; carPivot.position.set(0, 0.5, 0); carPivot.rotation.set(0, 0, 0); car.rotation.set(0, 0, 0);
-    state.shipX = 0; state.shipY = 0.5; velocityX = 0; pointerTargetX = 0;
+  function closeEditor() {
+    document.getElementById('editorPanel').classList.remove('active');
+    currentDiaryId = null;
   }
 
-  window.restartGame = function() {
-    document.getElementById('overScreen').classList.add('hidden');
-    document.getElementById('hud').style.display = 'flex';
-    document.getElementById('startScreen').classList.add('hidden');
-    window.reset3D();
-    state.mode = 'playing'; state.elapsed = 0; state.speed = state.baseSpeed; state.traveled = 0; state.nextSpawn = 45; state.score = 0;
-    document.getElementById('score').textContent = '0'; 
-    try { let bgm = document.getElementById('bgm'); bgm.currentTime = 0; bgm.play(); } catch(e){}
-  }
+  function saveDiary() {
+    const title = document.getElementById('editTitle').value.trim();
+    const content = document.getElementById('editContent').value.trim();
+    
+    if (!title && !content) {
+      alert('标题和内容不能都为空哦！');
+      return;
+    }
 
-  const keys = new Set();
-  addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault(); keys.add(k); });
-  addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-  addEventListener('blur', () => keys.clear());
-  addEventListener('mousemove', e => { if (state.mode !== 'playing') return; pointerTargetX = ((e.clientX / innerWidth) * 2 - 1) * LIMIT_X; pointerActive = true; });
+    let diaries = getDiaries();
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
 
-  let touchId = null, lastTX = 0;
-  addEventListener('touchstart', e => { if (state.mode !== 'playing') return; const t = e.changedTouches[0]; touchId = t.identifier; lastTX = t.clientX; }, { passive:true });
-  addEventListener('touchmove', e => {
-    if (state.mode !== 'playing' || touchId === null) return;
-    for (const t of e.changedTouches){ if (t.identifier !== touchId) continue; const dx = t.clientX - lastTX; lastTX = t.clientX; pointerTargetX = clamp(pointerTargetX + dx * 0.1, -LIMIT_X, LIMIT_X); pointerActive = true; }
-    e.preventDefault();
-  }, { passive:false });
-  addEventListener('touchend', e => { for (const t of e.changedTouches){ if (t.identifier === touchId) touchId = null; } }, { passive:true });
-  addEventListener('resize', () => { if (camera) { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); } });
-
-  function spawnObstacleWave(spawnZ, padX) {
-    const obsCount = Math.random() > 0.5 ? 2 : 1;
-    const center = getCurveOffset(spawnZ);
-    for (let i = 0; i < obsCount; i++) {
-      let localX = obsCount === 1 ? rnd(-LIMIT_X * 0.8, LIMIT_X * 0.8) : (i === 0 ? rnd(-LIMIT_X * 0.9, -2.2) : rnd(2.2, LIMIT_X * 0.9));
-      
-      if (padX !== null && Math.abs(localX - padX) < 4.5) {
-        if (localX < padX) localX = padX - 5.0;
-        else localX = padX + 5.0;
-        localX = clamp(localX, -LIMIT_X * 0.95, LIMIT_X * 0.95);
+    if (currentDiaryId) {
+      const index = diaries.findIndex(d => d.id === currentDiaryId);
+      if (index !== -1) {
+        diaries[index].title = title;
+        diaries[index].content = content;
+        diaries[index].date = dateStr; 
+        diaries[index].timestamp = now.getTime();
       }
-
-      const grp = new THREE.Group();
-      const m = new THREE.Mesh(DEBRIS_GEOS[Math.floor(Math.random()*DEBRIS_GEOS.length)], DEBRIS_MATS[Math.floor(Math.random()*DEBRIS_MATS.length)]);
-      m.rotation.set(rnd(0,6.28), rnd(0,6.28), rnd(0,6.28)); 
-      grp.add(m);
-      
-      const sphere = new THREE.Box3().setFromObject(grp).getBoundingSphere(new THREE.Sphere());
-      
-      // 【核心修改】障碍物外层包裹红色的危险警告线框，确保在暗处极其明显
-      const wireMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, transparent: true, opacity: 0.4 });
-      const wireBox = new THREE.Mesh(new THREE.SphereGeometry(sphere.radius * 1.0, 6, 6), wireMat);
-      grp.add(wireBox);
-
-      const yOffset = sphere.radius * 0.8;
-      grp.position.set(center.x + localX, yOffset, spawnZ); scene.add(grp);
-      obstacles.push({ mesh: grp, localX, localY: yOffset, radius: Math.max(0.6, sphere.radius * 0.8), spin: { x: rnd(-0.9,0.9), y: rnd(-0.9,0.9), z: rnd(-0.6,0.6) } });
+    } else {
+      diaries.push({
+        id: Date.now(), 
+        title: title,
+        content: content,
+        date: dateStr,
+        timestamp: now.getTime()
+      });
     }
-  }
-  
-  function spawnOrb(zPos){ 
-      const g = new THREE.Group(); 
-      g.add(new THREE.Mesh(orbGlowGeo, orbGlowMat)); 
-      const core = new THREE.Mesh(orbCoreGeo, orbCoreMat); g.add(core); 
-      const ring = new THREE.Mesh(orbRingGeo, orbRingMat); 
-      ring.rotation.x = Math.PI / 2; 
-      g.add(ring);
-      
-      const localX = rnd(-LIMIT_X * 0.85, LIMIT_X * 0.85); 
-      const z = zPos || (-160 - Math.random()*22); 
-      const center = getCurveOffset(z); 
-      g.position.set(center.x + localX, 1.0, z); 
-      scene.add(g); 
-      orbs.push({ mesh:g, core: core, ring: ring, localX, localY: 1.0 }); 
-  }
-  
-  function spawnPowerup(zPos){ 
-      const rand = Math.random(); 
-      let type = 'shield'; 
-      let mesh = new THREE.Mesh(puShieldGeo, puShieldMat); 
-      if (rand > 0.6) { type = 'weapon'; mesh = new THREE.Mesh(puWeaponGeo, puWeaponMat); } 
-      else if (rand > 0.9) { type = 'nuke'; mesh = new THREE.Mesh(puNukeGeo, puNukeMat); } 
-      
-      const g = new THREE.Group(); g.add(mesh); 
-      const wireMat = new THREE.MeshBasicMaterial({ color: mesh.material.color, wireframe: true, transparent: true, opacity: 0.8 });
-      const wireSphere = new THREE.Mesh(new THREE.SphereGeometry(1.0, 8, 8), wireMat);
-      g.add(wireSphere);
 
-      const localX = rnd(-LIMIT_X * 0.85, LIMIT_X * 0.85); 
-      const z = zPos || (-160 - Math.random()*22); 
-      const center = getCurveOffset(z); 
-      g.position.set(center.x + localX, 1.0, z); 
-      scene.add(g); 
-      powerups.push({ mesh:g, core: mesh, wire: wireSphere, type, localX, localY: 1.0 }); 
-  }
-  
-  function spawnBoostPad(spawnZ) { 
-    const grp = new THREE.Group(); 
-    const pad = new THREE.Mesh(boostPadGeo, boostPadMat); 
-    pad.rotation.x = -Math.PI / 2; grp.add(pad); 
-    
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 1.5); shape.lineTo(-1, -1); shape.lineTo(1, -1); shape.lineTo(0, 1.5);
-    const arrowGeo = new THREE.ShapeGeometry(shape);
-    arrowGeo.rotateX(-Math.PI / 2); 
-    const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    
-    for(let i=0; i<2; i++) { 
-      const arrow = new THREE.Mesh(arrowGeo, arrowMat); 
-      arrow.position.set(0, 0.1, -2 + i*4); 
-      grp.add(arrow); 
-    } 
-    
-    const localX = rnd(-LIMIT_X * 0.85, LIMIT_X * 0.85); 
-    const center = getCurveOffset(spawnZ); 
-    grp.position.set(center.x + localX, 0.05, spawnZ); 
-    scene.add(grp); 
-    boostPads.push({ mesh: grp, localX, localY: 0.5 }); 
-    return localX;
-  }
-  
-  function spawnWave(){ 
-    const spawnZ = -160 - Math.random()*20;
-    let padX = null;
-    if (Math.random() < 0.3) { padX = spawnBoostPad(spawnZ); }
-    spawnObstacleWave(spawnZ, padX);
-    if (Math.random() < 0.5) spawnOrb(spawnZ); 
-    if (Math.random() < 0.2) spawnPowerup(spawnZ); 
-  }
-  
-  function spawnLogic(){ if (state.traveled < state.nextSpawn) return; const t = Math.min(1, state.elapsed / 80); state.nextSpawn = state.traveled + state.speed * (0.9 - 0.4 * t); spawnWave(); }
-
-  function updateShip(dt){
-    let inputX = 0;
-    if (keys.has('a') || keys.has('arrowleft'))  inputX -= 1;
-    if (keys.has('d') || keys.has('arrowright')) inputX += 1;
-    if (pointerActive && !inputX) { velocityX = (pointerTargetX - state.shipX) * 8; } 
-    else {
-        if (inputX !== 0) { velocityX += inputX * ACCELERATION * dt; } 
-        else { velocityX *= Math.pow(FRICTION, dt * 60); }
-    }
-    velocityX = clamp(velocityX, -MAX_LATERAL_SPEED, MAX_LATERAL_SPEED);
-    state.shipX += velocityX * dt;
-    if (state.shipX > LIMIT_X) { state.shipX = LIMIT_X; velocityX = -velocityX * 0.2; } 
-    else if (state.shipX < -LIMIT_X) { state.shipX = -LIMIT_X; velocityX = -velocityX * 0.2; }
-    car.rotation.y += (clamp(-velocityX * 0.012, -0.4, 0.4) - car.rotation.y) * damp(10, dt);
-    car.rotation.z += (clamp(velocityX * 0.006, -0.15, 0.15) - car.rotation.z) * damp(8, dt);
-    car.rotation.x = 0; 
+    saveDiaries(diaries);
+    closeEditor();
+    renderDiaryList();
   }
 
-  function updateWorld(dt){
-    let currentSpeed = state.speed;
-    if (state.boostTimer > 0) { state.boostTimer -= dt; currentSpeed *= 1.8; document.getElementById('puBoost').style.display = 'flex'; document.getElementById('powerupHud').classList.add('active'); if (state.boostTimer <= 0) document.getElementById('puBoost').style.display = 'none'; }
-    const dz = currentSpeed * dt; const time = performance.now() * 0.001;
-
-    laneLines.forEach(l => { l.z += dz; if(l.z > 20) l.z -= 900; l.mesh.position.set(getCurveOffset(l.z).x, 0, l.z); });
-    sideObj.forEach(s => { s.z += dz; if(s.z > 20) s.z -= 900; const cx = getCurveOffset(s.z).x; s.gL.position.set(cx - 11, 0, s.z); s.gR.position.set(cx + 11, 0, s.z); s.pL.position.set(cx - 12, 4, s.z); s.pR.position.set(cx + 12, 4, s.z); });
-    buildings.forEach(b => { b.z += dz; if(b.z > 40) b.z -= 1200; b.mesh.position.set(getCurveOffset(b.z).x + b.xOff, 0, b.z); });
-
-    document.getElementById('speedHud').innerHTML = `${Math.floor(currentSpeed * 3.6)} <span class="unit">km/h</span>`;
-    if (state.mode === 'playing') document.getElementById('speedHud').classList.add('active');
-
-    if (state.shieldTimer > 0) { state.shieldTimer -= dt; document.getElementById('shieldTime').innerText = Math.ceil(state.shieldTimer); shieldMesh.visible = true; shieldMesh.rotation.y += 2 * dt; if (state.shieldTimer <= 0) { shieldMesh.visible = false; document.getElementById('puShield').style.display = 'none'; } else { document.getElementById('puShield').style.display = 'flex'; document.getElementById('powerupHud').classList.add('active'); } }
-    if (state.weaponTimer > 0) {
-      state.weaponTimer -= dt; document.getElementById('weaponTime').innerText = Math.ceil(state.weaponTimer);
-      if (state.weaponTimer <= 0) { document.getElementById('puWeapon').style.display = 'none'; } else { document.getElementById('puWeapon').style.display = 'flex'; document.getElementById('powerupHud').classList.add('active'); }
-      if (Math.floor(state.weaponTimer * 10) % 2 === 0) {
-        if (!state.lastShoot || time - state.lastShoot > 0.12) {
-          state.lastShoot = time; const b = new THREE.Mesh(bulletGeo, bulletMat); const offset0 = getCurveOffset(0); const T = getTangent(0);
-          b.position.copy(new THREE.Vector3(offset0.x + state.shipX, state.shipY + 0.2, 0).add(T.clone().multiplyScalar(2))); b.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), T);
-          scene.add(b); bullets.push({ mesh: b, localX: state.shipX, localY: state.shipY + 0.2 }); Sound.playSound('shoot');
-        }
-      }
-    }
-    if (state.shieldTimer <= 0 && state.weaponTimer <= 0 && state.boostTimer <= 0) document.getElementById('powerupHud').classList.remove('active');
-
-    for (let i = boostPads.length - 1; i >= 0; i--) { const o = boostPads[i]; o.mesh.position.z += dz; const z = o.mesh.position.z; o.mesh.position.x = getCurveOffset(z).x + o.localX; if (state.mode === 'playing' && z > -4 && z < 4 && Math.abs(o.localX - state.shipX) < 3.0) { state.boostTimer = 1.5; triggerShake(0.4, 0.8); Sound.playSound('pickup'); scene.remove(o.mesh); boostPads.splice(i, 1); continue; } if (z > 20) { scene.remove(o.mesh); boostPads.splice(i, 1); } }
-    for (let i = bullets.length - 1; i >= 0; i--) { const b = bullets[i]; b.mesh.position.z -= 250 * dt; const z = b.mesh.position.z; if (z < -200) { scene.remove(b.mesh); bullets.splice(i, 1); continue; } b.mesh.position.x = getCurveOffset(z).x + b.localX; for (let j = obstacles.length - 1; j >= 0; j--) { const o = obstacles[j]; if (Math.abs(o.mesh.position.z - z) < 3.5 && Math.abs(o.localX - b.localX) < o.radius + 0.6) { createExplosion(o.mesh.position); scene.remove(o.mesh); obstacles.splice(j, 1); scene.remove(b.mesh); bullets.splice(i, 1); Sound.playSound('explode'); triggerShake(0.15, 0.3); triggerHitStop(0.03); break; } } }
-    for (let i = obstacles.length - 1; i >= 0; i--){ const o = obstacles[i]; o.mesh.position.z += dz; const z = o.mesh.position.z; o.mesh.position.x = getCurveOffset(z).x + o.localX; o.mesh.rotation.x += o.spin.x * dt; o.mesh.rotation.y += o.spin.y * dt; o.mesh.rotation.z += o.spin.z * dt; if (state.mode === 'playing' && z > -2.5 && z < 2.5 && Math.abs(o.localX - state.shipX) < o.radius + 0.6) { if (state.shieldTimer > 0 || state.boostTimer > 0) { createExplosion(o.mesh.position); scene.remove(o.mesh); obstacles.splice(i, 1); Sound.playSound('explode'); triggerShake(0.2, 0.5); } else { crash(); } } if (z > 20){ scene.remove(o.mesh); obstacles.splice(i, 1); } }
-    
-    for (let i = orbs.length - 1; i >= 0; i--){ 
-        const o = orbs[i]; 
-        o.mesh.position.z += dz; 
-        const z = o.mesh.position.z; 
-        o.mesh.position.x = getCurveOffset(z).x + o.localX; 
-        o.core.rotation.x += 2.2 * dt; o.core.rotation.y += 3.0 * dt; 
-        o.ring.rotation.z += 4.0 * dt; 
-        
-        if (state.mode === 'playing' && z > -3 && z < 3 && Math.abs(o.localX - state.shipX) < 2.5){ state.score += 50; Sound.playSound('pickup'); scene.remove(o.mesh); orbs.splice(i, 1); continue; } 
-        if (z > 20){ scene.remove(o.mesh); orbs.splice(i, 1); } 
-    }
-    
-    for (let i = powerups.length - 1; i >= 0; i--){ 
-        const o = powerups[i]; 
-        o.mesh.position.z += dz; 
-        const z = o.mesh.position.z; 
-        o.mesh.position.x = getCurveOffset(z).x + o.localX; 
-        o.core.rotation.x += 2.0 * dt; o.core.rotation.y += 2.5 * dt; 
-        o.wire.rotation.x -= 1.5 * dt; o.wire.rotation.y += 1.5 * dt; 
-        
-        if (state.mode === 'playing' && z > -3 && z < 3 && Math.abs(o.localX - state.shipX) < 2.5){ 
-            if (o.type === 'shield') { state.shieldTimer = 6.0; } 
-            else if (o.type === 'weapon') { state.weaponTimer = 8.0; } 
-            else if (o.type === 'nuke') { triggerShake(0.8, 1.5); triggerHitStop(0.1); document.getElementById('nukeFlash').style.opacity = '0.8'; setTimeout(() => document.getElementById('nukeFlash').style.opacity = '0', 100); for (let j = obstacles.length - 1; j >= 0; j--) { createExplosion(obstacles[j].mesh.position); scene.remove(obstacles[j].mesh); } obstacles.length = 0; } 
-            scene.remove(o.mesh); powerups.splice(i, 1); continue; 
-        } 
-        if (z > 20){ scene.remove(o.mesh); powerups.splice(i, 1); } 
-    }
+  function escapeHTML(str) {
+    if (!str) return '';
+    return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
   }
-
-  function updateCamera(dt){
-    const offset0 = getCurveOffset(0); const T = getTangent(0);
-    const carWorld = new THREE.Vector3(offset0.x + state.shipX, 0.5, 0);
-    carPivot.position.copy(carWorld); carPivot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), T);
-    let camPos = new THREE.Vector3(offset0.x + state.shipX * 0.8, 0, 0).add(T.clone().multiplyScalar(-18)).add(new THREE.Vector3(0, 4.5, 0));
-    let targetFov = BASE_FOV + (state.speed / state.maxSpeed) * 15; if (state.boostTimer > 0) targetFov += 20; 
-    camera.fov += (targetFov - camera.fov) * 0.1; camera.updateProjectionMatrix();
-    if (shakeTime > 0) { shakeTime -= dt; camPos.x += (Math.random() - 0.5) * shakeIntensity; camPos.y += (Math.random() - 0.5) * shakeIntensity; shakeIntensity *= 0.9; }
-    camera.position.copy(camPos); camera.lookAt(new THREE.Vector3(offset0.x + state.shipX * 0.5, 2.0, 0).add(T.clone().multiplyScalar(30)));
-  }
-
-  function createExplosion(pos){
-    const N = 30; const positions = new Float32Array(N * 3); const vels = [];
-    for (let i = 0; i < N; i++){ positions[i*3] = pos.x; positions[i*3+1] = pos.y; positions[i*3+2] = pos.z; vels.push(new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize().multiplyScalar(3 + Math.random()*15)); }
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color:0xffb04d, size:0.55, transparent:true, opacity:1, depthWrite:false, blending:THREE.AdditiveBlending }));
-    scene.add(pts); explosions.push({ points: pts, vels, life: 1.0 });
-  }
-  function updateParticles(dt){
-    for (let i = explosions.length - 1; i >= 0; i--){ const ex = explosions[i]; ex.life -= dt; if (ex.life <= 0) { scene.remove(ex.points); ex.points.geometry.dispose(); ex.points.material.dispose(); explosions.splice(i, 1); continue; } const pos = ex.points.geometry.attributes.position; const drag = 1 - 2.2 * dt; for (let j = 0; j < ex.vels.length; j++){ const v = ex.vels[j]; pos.array[j*3] += v.x * dt; pos.array[j*3+1] += v.y * dt; pos.array[j*3+2] += v.z * dt; v.multiplyScalar(drag); } pos.needsUpdate = true; ex.points.material.opacity = Math.max(0, ex.life); }
-  }
-
-  function crash(){
-    if (state.mode !== 'playing') return; state.mode = 'over'; carPivot.visible = false;
-    try { document.getElementById('bgm').pause(); } catch(e){}
-    triggerShake(1.5, 3.0); triggerHitStop(0.15); createExplosion(carPivot.position); Sound.playSound('explode');
-    document.getElementById('flash').style.opacity = '0.9'; setTimeout(() => { document.getElementById('flash').style.opacity = '0'; }, 150);
-    const finalScore = Math.floor(state.score);
-    if (finalScore > state.best){ state.best = finalScore; try{localStorage.setItem('racerunner_best', String(state.best));}catch(e){} }
-    setTimeout(() => { document.getElementById('finalScore').textContent = finalScore; document.getElementById('finalBest').textContent = '最高分 ' + state.best; document.getElementById('overScreen').classList.remove('hidden'); document.getElementById('hud').style.display = 'none'; }, 950);
-  }
-
-  const clock = new THREE.Clock();
-  function update(dt){
-    if (hitStopTime > 0) { hitStopTime -= dt; return; }
-    const time = performance.now() * 0.001;
-    if (state.mode === 'playing'){ state.elapsed += dt; const t = 1 - Math.exp(-state.elapsed / 45); state.speed = state.baseSpeed + (state.maxSpeed - state.baseSpeed) * t; state.traveled += state.speed * dt; updateShip(dt); spawnLogic(); state.score += state.speed * dt * 0.35; document.getElementById('score').textContent = Math.floor(state.score); } 
-    else if (state.mode === 'ready'){ const offset0 = getCurveOffset(0); carPivot.position.set(offset0.x, 0.5, 0); car.position.y = Math.sin(time * 5) * 0.05; }
-    if (state.mode === 'playing' || state.mode === 'over') updateWorld(dt); updateParticles(dt);
-    if (state.mode !== 'over') { updateCamera(dt); } else { camera.position.z += dt * 2; }
-  }
-
-  function animate(){
-    if (!renderer) return;
-    requestAnimationFrame(animate);
-    const dt = Math.min(clock.getDelta(), 0.05);
-    update(dt); renderer.render(scene, camera);
-  }
-
-})();
 </script>
 </body>
 </html>
