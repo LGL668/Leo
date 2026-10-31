@@ -3,9 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>DeepSeek 智能助手</title>
-
-<!-- 恢复图标 -->
+<title>DeepSeek 深度思考助手</title>
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -39,6 +37,11 @@
 
   @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+  /* 深度思考折叠面板样式 */
+  details.think-box { margin-bottom: 10px; font-size: 13px; color: #666; background: #f9f9f9; border-radius: 8px; padding: 10px; border: 1px solid #eee;}
+  details.think-box summary { cursor: pointer; color: #8b5cf6; font-weight: bold; outline: none; user-select: none;}
+  details.think-box p { margin-top: 8px; white-space: pre-wrap; line-height: 1.5; color: #888; border-left: 2px solid #ccc; padding-left: 8px;}
+
   .input-area { padding:15px 20px; background:rgba(255,255,255,0.9); border-top:1px solid rgba(0,0,0,0.05); display:flex; gap:10px; align-items:flex-end; padding-bottom: env(safe-area-inset-bottom, 15px);}
   textarea { flex:1; background:#f5f5f5; border:none; border-radius:12px; padding:14px; font-size:15px; color:var(--text); outline:none; resize:none; max-height:120px; min-height:52px; line-height: 1.5;}
   textarea:focus { background:#fff; box-shadow:0 0 0 2px rgba(255, 107, 158, 0.2);}
@@ -57,7 +60,7 @@
 <body>
 
 <header>
-  <div class="title">DeepSeek 智能助手</div>
+  <div class="title">DeepSeek 深度思考助手</div>
   <button class="clear-btn" id="clearBtn">清空</button>
 </header>
 
@@ -65,24 +68,18 @@
 
 <div class="input-area">
   <textarea id="messageInput" rows="1" placeholder="输入内容..."></textarea>
-  <!-- 去掉了 onclick，改用 js 绑定 -->
   <button class="send-btn" id="sendBtn">➤</button>
 </div>
 
-<!-- 引入 Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // 确保 DOM 加载完毕后再执行
   document.addEventListener('DOMContentLoaded', () => {
-    
-    // 1. 检查依赖是否加载成功
     if (typeof window.supabase === 'undefined') {
-      document.getElementById('chatContainer').innerHTML = '<div class="message ai"><div class="bubble" style="color:red">⚠️ Supabase SDK 加载失败，请检查网络或刷新重试。</div></div>';
+      document.getElementById('chatContainer').innerHTML = '<div class="message ai"><div class="bubble" style="color:red">⚠️ Supabase SDK 加载失败，请刷新重试。</div></div>';
       return;
     }
 
-    // 2. 配置信息
     const VERCEL_PROXY_URL = 'https://leo-pgxa.vercel.app/api/deepseek'; 
     const SUPABASE_URL = 'https://pitrqhoudtzwhmaejsdk.supabase.co'; 
     const SUPABASE_ANON_KEY = 'sb_publishable_p8PFT4wTiunwiN7B7R3I2w_356h75Za';
@@ -97,37 +94,29 @@
     let currentUser = null;
     let chatHistory = [{ role: 'system', content: '你是一个智能、贴心、准确的 AI 助手。' }];
 
-    // 3. 绑定点击事件 (避免内联 onclick 失效)
     sendBtn.addEventListener('click', sendMessage);
     clearBtn.addEventListener('click', clearChat);
 
-    // 4. 初始化
     async function initApp() {
       chatContainer.innerHTML = '<div class="message ai"><div class="bubble">正在连接数据库...</div></div>';
-      
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
         if (sessionError) throw sessionError;
 
         if (!session) {
-          // 匿名登录
           const { data, error } = await supabase.auth.signInAnonymously();
-          if (error) throw new Error("匿名登录失败: " + error.message + " (请确保已在Supabase后台开启Anonymous Sign-ins)");
+          if (error) throw new Error("匿名登录失败: " + error.message);
           currentUser = data.user;
         } else {
           currentUser = session.user;
         }
-
         loadHistory();
-        
       } catch (err) {
         chatContainer.innerHTML = '';
         appendMessage('ai', `⚠️ 连接失败：${err.message}`);
       }
     }
 
-    // 5. 加载记录
     async function loadHistory() {
       const { data, error } = await supabase
         .from('messages')
@@ -135,14 +124,10 @@
         .order('created_at', { ascending: true });
       
       chatContainer.innerHTML = ''; 
-      
-      if (error) {
-        appendMessage('ai', '加载历史记录失败：' + error.message);
-        return;
-      }
+      if (error) { appendMessage('ai', '加载历史记录失败：' + error.message); return; }
 
       if (data.length === 0) {
-        appendMessage('ai', '你好！我是 DeepSeek 助手，有什么我可以帮你的吗？');
+        appendMessage('ai', '你好！我是已开启深度思考的 AI 助手，有什么我可以帮你的吗？');
       } else {
         data.forEach(msg => appendMessage(msg.role, msg.content));
         chatHistory = [
@@ -152,32 +137,16 @@
       }
     }
 
-    // 6. 发送消息
     async function sendMessage() {
       const text = messageInput.value.trim();
-      if (!text) return;
-      
-      if (!currentUser) {
-        alert("正在连接数据库，请稍等几秒再发送... (如果一直这样，请检查Supabase是否开启了Anonymous Sign-ins)");
-        return;
-      }
+      if (!text || !currentUser) return;
 
       appendMessage('user', text);
       messageInput.value = '';
       messageInput.style.height = '52px';
-      
       chatHistory.push({ role: 'user', content: text });
 
-      const { error: dbError } = await supabase.from('messages').insert({ 
-        user_id: currentUser.id, 
-        role: 'user', 
-        content: text 
-      });
-      
-      if (dbError) {
-        appendMessage('ai', `⚠️ 消息保存失败：${dbError.message}`);
-        return;
-      }
+      await supabase.from('messages').insert({ user_id: currentUser.id, role: 'user', content: text });
 
       sendBtn.disabled = true;
       const loadingId = appendLoading();
@@ -195,15 +164,14 @@
         if (!response.ok) throw new Error(data.error || 'API 请求失败');
 
         if (data.choices && data.choices[0]) {
-          const aiText = data.choices[0].message.content;
-          appendMessage('ai', aiText);
+          const aiMsg = data.choices[0].message;
+          const aiText = aiMsg.content;
+          const thinkText = aiMsg.reasoning_content; // 获取思考过程
+
+          appendMessage('ai', aiText, thinkText);
           chatHistory.push({ role: 'assistant', content: aiText });
 
-          await supabase.from('messages').insert({ 
-            user_id: currentUser.id, 
-            role: 'assistant', 
-            content: aiText 
-          });
+          await supabase.from('messages').insert({ user_id: currentUser.id, role: 'assistant', content: aiText });
         }
       } catch (error) {
         document.getElementById(loadingId)?.remove();
@@ -213,13 +181,26 @@
       }
     }
 
-    // 渲染函数
-    function appendMessage(role, text) {
+    // 渲染消息（支持渲染思考过程）
+    function appendMessage(role, text, thinkText = null) {
       const msgDiv = document.createElement('div');
       msgDiv.className = `message ${role}`;
       const bubble = document.createElement('div');
       bubble.className = 'bubble';
-      bubble.textContent = text; 
+      
+      // 如果有思考过程，先插入折叠面板
+      if (thinkText) {
+        const details = document.createElement('details');
+        details.className = 'think-box';
+        details.innerHTML = `<summary>已深度思考 (点击展开)</summary><p>${thinkText}</p>`;
+        bubble.appendChild(details);
+      }
+
+      // 插入正式回复
+      const textNode = document.createElement('div');
+      textNode.textContent = text;
+      bubble.appendChild(textNode);
+
       msgDiv.appendChild(bubble);
       chatContainer.appendChild(msgDiv);
       chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -260,7 +241,6 @@
       }
     });
 
-    // 执行初始化
     initApp();
   });
 </script>
