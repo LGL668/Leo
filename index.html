@@ -6,9 +6,7 @@
 <title>心动日记 · 记录美好瞬间</title>
 <style>
   :root{ 
-    /* 梦幻渐变背景 */
     --bg: linear-gradient(135deg, #ffeef8 0%, #e6e6fa 100%);
-    /* 纯白卡片，带一点点透明度 */
     --card-bg: rgba(255, 255, 255, 0.85); 
     --text: #333333; 
     --text-sub: #888888; 
@@ -20,7 +18,6 @@
   *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
   body{background: var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; background-attachment: fixed;}
   
-  /* 隐藏类 */
   .hidden{display:none !important}
 
   /* 通用按钮 */
@@ -33,11 +30,7 @@
   #loginScreen { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:100;}
   .login-card { background:var(--card-bg); padding:40px; border-radius:24px; width:90%; max-width:400px; border:1px solid #fff; box-shadow:0 15px 35px rgba(255, 107, 158, 0.15); text-align:center; backdrop-filter: blur(10px);}
   
-  /* 心动日记 Logo 字 */
-  .login-title { font-size:32px; font-weight:900; letter-spacing:2px; margin-bottom:10px; 
-    background:linear-gradient(90deg, var(--pink), var(--purple)); 
-    -webkit-background-clip:text; background-clip:text; color:transparent;
-  }
+  .login-title { font-size:32px; font-weight:900; letter-spacing:2px; margin-bottom:10px; background:linear-gradient(90deg, var(--pink), var(--purple)); -webkit-background-clip:text; background-clip:text; color:transparent;}
   .login-subtitle { font-size:13px; color:var(--text-sub); margin-bottom:30px;}
   
   .input-group { margin-bottom:18px; text-align:left;}
@@ -51,7 +44,6 @@
   /* ================= 主应用界面 ================= */
   #appScreen { display:flex; flex-direction:column; height:100%; width:100%; max-width:800px; margin:0 auto;}
   
-  /* 顶部导航 */
   header { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); backdrop-filter: blur(10px); border-radius: 0 0 16px 16px;}
   .user-info { display:flex; align-items:center; gap:12px;}
   .avatar { width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg, var(--pink), var(--purple)); display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; box-shadow:0 2px 8px rgba(179, 136, 255, 0.4);}
@@ -60,11 +52,15 @@
   /* 日记列表 */
   .list-container { flex:1; overflow-y:auto; padding:20px;}
   .empty-state { text-align:center; color:var(--text-sub); margin-top:50px; font-size:15px;}
+  
   .diary-card { background:var(--card-bg); padding:22px; border-radius:16px; margin-bottom:16px; border:1px solid #fff; cursor:pointer; transition:transform 0.2s, box-shadow 0.2s; box-shadow:0 4px 15px rgba(0,0,0,0.03); backdrop-filter: blur(5px);}
   .diary-card:hover { transform:translateY(-3px); box-shadow:0 8px 25px rgba(255, 107, 158, 0.15);}
   .diary-card-title { font-size:18px; font-weight:bold; margin-bottom:8px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .diary-card-date { font-size:12px; color:var(--pink); margin-bottom:12px; font-weight:600;}
-  .diary-card-content { font-size:14px; color:var(--text-sub); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.6;}
+  .diary-card-content { font-size:14px; color:var(--text-sub); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.6; margin-bottom: 10px;}
+  
+  /* 卡片中的缩略图 */
+  .diary-card-img { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 5px;}
 
   /* 悬浮添加按钮 */
   .fab { position:fixed; bottom:30px; right:30px; width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg, var(--pink), var(--light-pink)); color:#fff; font-size:36px; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 20px rgba(255, 107, 158, 0.4); cursor:pointer; z-index:10; transition:transform 0.2s;}
@@ -77,10 +73,23 @@
   .editor-header { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); backdrop-filter: blur(10px);}
   .editor-title-input { background:transparent; border:none; color:var(--text); font-size:20px; font-weight:bold; outline:none; width:60%;}
   .editor-title-input::placeholder { color:#b0a4ab; }
-  .editor-body { flex:1; display:flex; flex-direction:column; padding:25px;}
-  .editor-textarea { flex:1; background:transparent; border:none; color:var(--text); font-size:16px; line-height:1.8; outline:none; resize:none; font-family:inherit;}
-  .editor-textarea::placeholder { color:#b0a4ab; }
+  
+  .editor-body { flex:1; display:flex; flex-direction:column; padding:25px; overflow-y: auto;}
   .editor-date { font-size:13px; color:var(--pink); margin-bottom:15px; padding-bottom:15px; border-bottom:1px dashed var(--border); font-weight:bold;}
+  .editor-textarea { flex:1; min-height: 150px; background:transparent; border:none; color:var(--text); font-size:16px; line-height:1.8; outline:none; resize:none; font-family:inherit;}
+  .editor-textarea::placeholder { color:#b0a4ab; }
+
+  /* 图片上传区域 */
+  .upload-section { margin-top: 20px; padding-top: 20px; border-top: 1px dashed var(--border);}
+  .upload-btn { display: inline-block; background: rgba(255,255,255,0.8); border: 1.5px solid var(--pink); color: var(--pink); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px;}
+  .upload-btn input[type="file"] { display: none; }
+  
+  /* 图片预览 */
+  .image-preview-container { position: relative; margin-top: 15px; display: inline-block;}
+  .image-preview { max-width: 100%; max-height: 200px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: block;}
+  .delete-img-btn { position: absolute; top: -10px; right: -10px; background: rgba(255, 61, 139, 0.9); color: #fff; border: none; width: 24px; height: 24px; border-radius: 50%; font-size: 14px; line-height: 24px; text-align: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
+
+  .editor-footer { padding:20px; text-align:center; background:var(--card-bg); backdrop-filter: blur(10px);}
 </style>
 </head>
 <body>
@@ -134,24 +143,34 @@
   <div class="editor-body">
     <div class="editor-date" id="editDate"></div>
     <textarea class="editor-textarea" id="editContent" placeholder="记录下今天让你心动的故事..."></textarea>
+    
+    <!-- 图片上传与预览 -->
+    <div class="upload-section">
+      <label class="upload-btn">
+        📷 添加照片
+        <input type="file" accept="image/*" id="imageInput" onchange="handleImageUpload(event)">
+      </label>
+      <div id="imagePreviewContainer" class="image-preview-container hidden">
+        <img id="imagePreview" class="image-preview" src="">
+        <button class="delete-img-btn" onclick="removeImage()">×</button>
+      </div>
+    </div>
   </div>
-  <div style="padding:20px; text-align:center; background:var(--card-bg); backdrop-filter: blur(10px);">
+  
+  <div class="editor-footer">
     <button class="btn btn-outline" style="width:100%; padding:15px;" onclick="closeEditor()">取消返回</button>
   </div>
 </div>
 
 <script>
-  // ================= 数据存储与状态 =================
   let isLoginMode = true; 
   let currentUser = null; 
   let currentDiaryId = null; 
+  let currentImageBase64 = null; // 用于暂存当前正在编辑的图片
 
   document.addEventListener('DOMContentLoaded', () => {
     const savedUser = localStorage.getItem('diary_currentUser');
-    if (savedUser) {
-      currentUser = savedUser;
-      enterApp();
-    }
+    if (savedUser) { currentUser = savedUser; enterApp(); }
   });
 
   function toggleAuthMode() {
@@ -166,10 +185,7 @@
     const user = document.getElementById('usernameInput').value.trim();
     const pass = document.getElementById('passwordInput').value.trim();
 
-    if (!user || !pass) {
-      alert('请输入完整的账号和密码！');
-      return;
-    }
+    if (!user || !pass) { alert('请输入完整的账号和密码！'); return; }
 
     let users = JSON.parse(localStorage.getItem('diary_users') || '{}');
 
@@ -177,7 +193,7 @@
       if (!users[user]) { alert('账号不存在，请先注册！'); return; }
       if (users[user] !== pass) { alert('密码错误！'); return; }
     } else {
-      if (users[user]) { alert('该账号已被注册，请换一个！'); return; }
+      if (users[user]) { alert('该账号已被注册！'); return; }
       users[user] = pass;
       localStorage.setItem('diary_users', JSON.stringify(users));
       alert('注册成功，已自动登录！');
@@ -229,12 +245,17 @@
         <div class="diary-card-title">${escapeHTML(d.title) || '无标题的心动'}</div>
         <div class="diary-card-date">${d.date}</div>
         <div class="diary-card-content">${escapeHTML(d.content) || '暂无内容...'}</div>
+        ${d.image ? `<img src="${d.image}" class="diary-card-img">` : ''}
       </div>
     `).join('');
   }
 
   function openEditor(id = null) {
     currentDiaryId = id;
+    currentImageBase64 = null; // 重置图片状态
+    document.getElementById('imagePreviewContainer').classList.add('hidden');
+    document.getElementById('imageInput').value = ''; // 清空 input
+    
     const panel = document.getElementById('editorPanel');
     
     if (id) {
@@ -243,6 +264,13 @@
         document.getElementById('editTitle').value = diary.title;
         document.getElementById('editContent').value = diary.content;
         document.getElementById('editDate').innerText = `记录于: ${diary.date}`;
+        
+        // 加载已有图片
+        if (diary.image) {
+          currentImageBase64 = diary.image;
+          document.getElementById('imagePreview').src = diary.image;
+          document.getElementById('imagePreviewContainer').classList.remove('hidden');
+        }
       }
     } else {
       document.getElementById('editTitle').value = '';
@@ -257,14 +285,59 @@
   function closeEditor() {
     document.getElementById('editorPanel').classList.remove('active');
     currentDiaryId = null;
+    currentImageBase64 = null;
   }
 
+  // ================= 处理图片上传与压缩 =================
+  function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        // 使用 Canvas 压缩图片
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800; // 限制最大宽度
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // 压缩质量设为 0.7 (JPEG)
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+        
+        currentImageBase64 = compressedBase64;
+        document.getElementById('imagePreview').src = compressedBase64;
+        document.getElementById('imagePreviewContainer').classList.remove('hidden');
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeImage() {
+    currentImageBase64 = null;
+    document.getElementById('imageInput').value = '';
+    document.getElementById('imagePreviewContainer').classList.add('hidden');
+  }
+
+  // ================= 保存逻辑 =================
   function saveDiary() {
     const title = document.getElementById('editTitle').value.trim();
     const content = document.getElementById('editContent').value.trim();
     
-    if (!title && !content) {
-      alert('标题和内容不能都为空哦！');
+    if (!title && !content && !currentImageBase64) {
+      alert('标题、内容、图片至少需要填写一项哦！');
       return;
     }
 
@@ -277,6 +350,7 @@
       if (index !== -1) {
         diaries[index].title = title;
         diaries[index].content = content;
+        diaries[index].image = currentImageBase64; // 保存图片
         diaries[index].date = dateStr; 
         diaries[index].timestamp = now.getTime();
       }
@@ -285,14 +359,21 @@
         id: Date.now(), 
         title: title,
         content: content,
+        image: currentImageBase64, // 保存图片
         date: dateStr,
         timestamp: now.getTime()
       });
     }
 
-    saveDiaries(diaries);
-    closeEditor();
-    renderDiaryList();
+    try {
+      saveDiaries(diaries);
+      closeEditor();
+      renderDiaryList();
+    } catch (error) {
+      // 捕获存储空间超限的错误
+      alert('保存失败！可能是因为照片太多导致手机存储空间已满。请尝试删除一些旧日记或照片。');
+      console.error(error);
+    }
   }
 
   function escapeHTML(str) {
