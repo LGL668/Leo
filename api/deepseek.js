@@ -1,440 +1,60 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>心动日记 · 记录美好瞬间</title>
-<style>
-  :root{ 
-    --bg: linear-gradient(135deg, #ffeef8 0%, #e6e6fa 100%);
-    --card-bg: rgba(255, 255, 255, 0.85); 
-    --text: #333333; 
-    --text-sub: #888888; 
-    --pink: #ff6b9e; 
-    --light-pink: #ff9ebf;
-    --purple: #b388ff;
-    --border: rgba(255, 107, 158, 0.2);
+export const config = { runtime: 'edge' };
+
+export default async function handler(req) {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
-  *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
-  body{background: var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; background-attachment: fixed;}
-  
-  .hidden{display:none !important}
 
-  /* 通用按钮 */
-  .btn{background:linear-gradient(135deg, var(--pink), var(--light-pink)); color:#fff; border:none; padding:12px 24px; border-radius:12px; font-size:15px; font-weight:bold; cursor:pointer; transition:transform 0.1s, box-shadow 0.2s; box-shadow:0 4px 10px rgba(255, 107, 158, 0.3); display:flex; justify-content:center; align-items:center;}
-  .btn:active{transform:scale(0.96)}
-  .btn:disabled{opacity:0.6; cursor:not-allowed;}
-  .btn-outline{background:transparent; border:1.5px solid var(--border); color:var(--pink); box-shadow: none;}
-  .btn-outline:hover{background:rgba(255,107,158,0.05); border-color:var(--pink);}
+  // 1. 检查 API Key 是否配置
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: 'Vercel 未配置 DEEPSEEK_API_KEY 环境变量' }), { 
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
+  }
 
-  /* ================= 登录界面 ================= */
-  #loginScreen { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:100;}
-  .login-card { background:var(--card-bg); padding:40px; border-radius:24px; width:90%; max-width:400px; border:1px solid #fff; box-shadow:0 15px 35px rgba(255, 107, 158, 0.15); text-align:center; backdrop-filter: blur(10px);}
-  .login-title { font-size:32px; font-weight:900; letter-spacing:2px; margin-bottom:10px; background:linear-gradient(90deg, var(--pink), var(--purple)); -webkit-background-clip:text; background-clip:text; color:transparent;}
-  .login-subtitle { font-size:13px; color:var(--text-sub); margin-bottom:30px;}
-  .input-group { margin-bottom:18px; text-align:left;}
-  .input-group label { display:block; font-size:13px; color:var(--text-sub); margin-bottom:8px; font-weight:bold;}
-  .input-group input { width:100%; padding:14px 15px; border-radius:12px; background:#fff; border:1.5px solid var(--border); color:var(--text); font-size:15px; outline:none;}
-  .input-group input:focus { border-color:var(--pink);}
-  .login-btn { width:100%; margin-top:10px; padding:14px; font-size:16px;}
-  .switch-text { margin-top:20px; font-size:13px; color:var(--text-sub); cursor:pointer;}
-  .switch-text:hover { color:var(--pink);}
-
-  /* ================= 主应用界面 ================= */
-  #appScreen { display:flex; flex-direction:column; height:100%; width:100%; max-width:800px; margin:0 auto;}
-  header { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); backdrop-filter: blur(10px); border-radius: 0 0 16px 16px;}
-  .user-info { display:flex; align-items:center; gap:12px;}
-  .avatar { width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg, var(--pink), var(--purple)); display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; box-shadow:0 2px 8px rgba(179, 136, 255, 0.4);}
-  .username { font-weight:bold; color:var(--text); font-size:16px;}
-  
-  /* 日记列表 */
-  .list-container { flex:1; overflow-y:auto; padding:20px;}
-  .empty-state { text-align:center; color:var(--text-sub); margin-top:50px; font-size:15px;}
-  
-  .diary-card { background:var(--card-bg); padding:22px; border-radius:16px; margin-bottom:16px; border:1px solid #fff; cursor:pointer; transition:transform 0.2s, box-shadow 0.2s; box-shadow:0 4px 15px rgba(0,0,0,0.03); backdrop-filter: blur(5px);}
-  .diary-card:hover { transform:translateY(-3px); box-shadow:0 8px 25px rgba(255, 107, 158, 0.15);}
-  .diary-card-title { font-size:18px; font-weight:bold; margin-bottom:8px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .diary-card-date { font-size:12px; color:var(--pink); margin-bottom:12px; font-weight:600;}
-  .diary-card-content { font-size:14px; color:var(--text-sub); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.6; margin-bottom: 10px;}
-  .diary-card-img { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 5px;}
-
-  /* 悬浮添加按钮 */
-  .fab { position:fixed; bottom:30px; right:30px; width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg, var(--pink), var(--light-pink)); color:#fff; font-size:36px; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 20px rgba(255, 107, 158, 0.4); cursor:pointer; z-index:10; transition:transform 0.2s;}
-  .fab:active { transform:scale(0.9);}
-  @media (min-width:800px) { .fab { right:calc(50% - 370px); } }
-
-  /* ================= 编辑器全屏页 ================= */
-  #editorPanel { position:fixed; inset:0; background:var(--bg); z-index:200; display:flex; flex-direction:column; transform:translateY(100%); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);}
-  #editorPanel.active { transform:translateY(0);}
-  .editor-header { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); backdrop-filter: blur(10px);}
-  .editor-title-input { background:transparent; border:none; color:var(--text); font-size:20px; font-weight:bold; outline:none; width:60%;}
-  .editor-title-input::placeholder { color:#b0a4ab; }
-  
-  .editor-body { flex:1; display:flex; flex-direction:column; padding:25px; overflow-y: auto;}
-  .editor-date { font-size:13px; color:var(--pink); margin-bottom:15px; padding-bottom:15px; border-bottom:1px dashed var(--border); font-weight:bold;}
-  .editor-textarea { flex:1; min-height: 150px; background:transparent; border:none; color:var(--text); font-size:16px; line-height:1.8; outline:none; resize:none; font-family:inherit;}
-  .editor-textarea::placeholder { color:#b0a4ab; }
-
-  /* AI 工具按钮区 */
-  .ai-tools { margin-top: 15px; display: flex; gap: 10px;}
-  .ai-btn { background: linear-gradient(135deg, #a88beb, #f8ceec); color: white; box-shadow: 0 4px 10px rgba(168, 139, 235, 0.3); border: none; padding: 10px 20px; font-size: 14px;}
-  .ai-btn:disabled { background: #ccc; box-shadow: none; }
-
-  /* 图片上传区域 */
-  .upload-section { margin-top: 20px; padding-top: 20px; border-top: 1px dashed var(--border);}
-  .upload-btn { display: inline-block; background: rgba(255,255,255,0.8); border: 1.5px solid var(--pink); color: var(--pink); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px;}
-  .upload-btn input[type="file"] { display: none; }
-  
-  /* 图片预览 */
-  .image-preview-container { position: relative; margin-top: 15px; display: inline-block;}
-  .image-preview { max-width: 100%; max-height: 200px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: block;}
-  .delete-img-btn { position: absolute; top: -10px; right: -10px; background: rgba(255, 61, 139, 0.9); color: #fff; border: none; width: 24px; height: 24px; border-radius: 50%; font-size: 14px; line-height: 24px; text-align: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
-
-  .editor-footer { padding:20px; text-align:center; background:var(--card-bg); backdrop-filter: blur(10px);}
-</style>
-</head>
-<body>
-
-<!-- 登录/注册界面 -->
-<div id="loginScreen">
-  <div class="login-card">
-    <div class="login-title">心动日记</div>
-    <div class="login-subtitle" id="loginSubtitle">登录以记录你的心动瞬间</div>
+  try {
+    const body = await req.json();
     
-    <div class="input-group">
-      <label>账号</label>
-      <input type="text" id="usernameInput" placeholder="请输入账号" autocomplete="off">
-    </div>
-    <div class="input-group">
-      <label>密码</label>
-      <input type="password" id="passwordInput" placeholder="请输入密码">
-    </div>
-    
-    <button class="btn login-btn" id="submitBtn" onclick="handleAuth()">立即登录</button>
-    <div class="switch-text" id="switchModeBtn" onclick="toggleAuthMode()">没有账号？去注册</div>
-  </div>
-</div>
+    // 2. 请求 DeepSeek
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat', 
+        messages: body.messages,
+        stream: false,
+        temperature: 0.7,
+      }),
+    });
 
-<!-- 主应用界面 -->
-<div id="appScreen" class="hidden">
-  <header>
-    <div class="user-info">
-      <div class="avatar" id="userAvatar">U</div>
-      <div class="username" id="displayUsername">用户</div>
-    </div>
-    <div class="header-actions">
-      <button class="btn btn-outline" onclick="logout()">退出登录</button>
-    </div>
-  </header>
-  
-  <main class="list-container" id="diaryList">
-    <!-- 日记列表动态渲染 -->
-  </main>
-
-  <!-- 写日记悬浮按钮 -->
-  <div class="fab" onclick="openEditor()">+</div>
-</div>
-
-<!-- 日记编辑器 (全屏抽屉) -->
-<div id="editorPanel">
-  <div class="editor-header">
-    <input type="text" class="editor-title-input" id="editTitle" placeholder="写个心动的标题...">
-    <button class="btn" onclick="saveDiary()">保存</button>
-  </div>
-  <div class="editor-body">
-    <div class="editor-date" id="editDate"></div>
-    <textarea class="editor-textarea" id="editContent" placeholder="记录下今天让你心动的故事..."></textarea>
-    
-    <!-- AI 工具按钮 -->
-    <div class="ai-tools">
-      <button class="btn ai-btn" id="aiPolishBtn" onclick="aiPolishDiary()">✨ AI 润色</button>
-    </div>
-
-    <!-- 图片上传与预览 -->
-    <div class="upload-section">
-      <label class="upload-btn">
-        📷 添加照片
-        <input type="file" accept="image/*" id="imageInput" onchange="handleImageUpload(event)">
-      </label>
-      <div id="imagePreviewContainer" class="image-preview-container hidden">
-        <img id="imagePreview" class="image-preview" src="">
-        <button class="delete-img-btn" onclick="removeImage()">×</button>
-      </div>
-    </div>
-  </div>
-  
-  <div class="editor-footer">
-    <button class="btn btn-outline" style="width:100%; padding:15px;" onclick="closeEditor()">取消返回</button>
-  </div>
-</div>
-
-<script>
-  // ================= 核心配置 =================
-  // 这里已经填入了你的 Vercel 代理地址，无需改动
-  const VERCEL_PROXY_URL = 'https://leo-pgxa.vercel.app/api/deepseek'; 
-  // ============================================
-
-  let isLoginMode = true; 
-  let currentUser = null; 
-  let currentDiaryId = null; 
-  let currentImageBase64 = null; 
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const savedUser = localStorage.getItem('diary_currentUser');
-    if (savedUser) { currentUser = savedUser; enterApp(); }
-  });
-
-  function toggleAuthMode() {
-    isLoginMode = !isLoginMode;
-    document.getElementById('loginSubtitle').innerText = isLoginMode ? '登录以记录你的心动瞬间' : '创建一个新账号，开启心动之旅';
-    document.getElementById('submitBtn').innerText = isLoginMode ? '立即登录' : '立即注册';
-    document.getElementById('switchModeBtn').innerText = isLoginMode ? '没有账号？去注册' : '已有账号？去登录';
-    document.getElementById('passwordInput').value = ''; 
-  }
-
-  function handleAuth() {
-    const user = document.getElementById('usernameInput').value.trim();
-    const pass = document.getElementById('passwordInput').value.trim();
-
-    if (!user || !pass) { alert('请输入完整的账号和密码！'); return; }
-
-    let users = JSON.parse(localStorage.getItem('diary_users') || '{}');
-
-    if (isLoginMode) {
-      if (!users[user]) { alert('账号不存在，请先注册！'); return; }
-      if (users[user] !== pass) { alert('密码错误！'); return; }
-    } else {
-      if (users[user]) { alert('该账号已被注册！'); return; }
-      users[user] = pass;
-      localStorage.setItem('diary_users', JSON.stringify(users));
-      alert('注册成功，已自动登录！');
-    }
-
-    currentUser = user;
-    localStorage.setItem('diary_currentUser', currentUser);
-    enterApp();
-  }
-
-  function logout() {
-    currentUser = null;
-    localStorage.removeItem('diary_currentUser');
-    document.getElementById('appScreen').classList.add('hidden');
-    document.getElementById('loginScreen').classList.remove('hidden');
-    document.getElementById('usernameInput').value = '';
-    document.getElementById('passwordInput').value = '';
-  }
-
-  function enterApp() {
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('appScreen').classList.remove('hidden');
-    document.getElementById('displayUsername').innerText = currentUser;
-    document.getElementById('userAvatar').innerText = currentUser.charAt(0).toUpperCase();
-    renderDiaryList();
-  }
-
-  function getDiaries() {
-    return JSON.parse(localStorage.getItem(`diary_data_${currentUser}`) || '[]');
-  }
-
-  function saveDiaries(diaries) {
-    localStorage.setItem(`diary_data_${currentUser}`, JSON.stringify(diaries));
-  }
-
-  function renderDiaryList() {
-    const diaries = getDiaries();
-    const listContainer = document.getElementById('diaryList');
-
-    if (diaries.length === 0) {
-      listContainer.innerHTML = `<div class="empty-state">这里空空如也，点击右下角的 + 记录第一篇心动日记吧！</div>`;
-      return;
-    }
-
-    diaries.sort((a, b) => b.timestamp - a.timestamp);
-
-    listContainer.innerHTML = diaries.map(d => `
-      <div class="diary-card" onclick="openEditor(${d.id})">
-        <div class="diary-card-title">${escapeHTML(d.title) || '无标题的心动'}</div>
-        <div class="diary-card-date">${d.date}</div>
-        <div class="diary-card-content">${escapeHTML(d.content) || '暂无内容...'}</div>
-        ${d.image ? `<img src="${d.image}" class="diary-card-img">` : ''}
-      </div>
-    `).join('');
-  }
-
-  function openEditor(id = null) {
-    currentDiaryId = id;
-    currentImageBase64 = null; 
-    document.getElementById('imagePreviewContainer').classList.add('hidden');
-    document.getElementById('imageInput').value = ''; 
-    
-    const panel = document.getElementById('editorPanel');
-    
-    if (id) {
-      const diary = getDiaries().find(d => d.id === id);
-      if (diary) {
-        document.getElementById('editTitle').value = diary.title;
-        document.getElementById('editContent').value = diary.content;
-        document.getElementById('editDate').innerText = `记录于: ${diary.date}`;
-        if (diary.image) {
-          currentImageBase64 = diary.image;
-          document.getElementById('imagePreview').src = diary.image;
-          document.getElementById('imagePreviewContainer').classList.remove('hidden');
-        }
-      }
-    } else {
-      document.getElementById('editTitle').value = '';
-      document.getElementById('editContent').value = '';
-      const now = new Date();
-      const dateStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-      document.getElementById('editDate').innerText = `新建于: ${dateStr}`;
-    }
-    panel.classList.add('active');
-  }
-
-  function closeEditor() {
-    document.getElementById('editorPanel').classList.remove('active');
-    currentDiaryId = null;
-    currentImageBase64 = null;
-  }
-
-  // ================= AI 润色核心逻辑 =================
-  async function aiPolishDiary() {
-    const content = document.getElementById('editContent').value.trim();
-    if (!content) {
-      alert('请先写点内容，再让 AI 帮你润色吧~');
-      return;
-    }
-
-    const btn = document.getElementById('aiPolishBtn');
-    const originalText = btn.innerText;
-    btn.disabled = true;
-    btn.innerText = '思考中...';
-
+    // 获取原始返回文本
+    const text = await response.text();
+    let data;
     try {
-      const response = await fetch(VERCEL_PROXY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'system',
-              content: '你是一个细腻的日记润色助手。请帮助用户润色日记，保持第一人称，语气温暖、真诚，不要过度抒情或总结人生。只输出润色后的正文，不要包含任何解释。'
-            },
-            { role: 'user', content: content },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`网络请求失败: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.choices && data.choices[0] && data.choices[0].message) {
-        document.getElementById('editContent').value = data.choices[0].message.content;
-      } else {
-        throw new Error(data.error?.message || 'AI 返回格式错误');
-      }
-    } catch (error) {
-      alert('AI 润色出错：' + error.message + '\n请确保 Vercel 环境变量已配置正确，且 DeepSeek 账号有余额。');
-    } finally {
-      btn.disabled = false;
-      btn.innerText = originalText;
+      data = JSON.parse(text);
+    } catch (e) {
+      data = { error: `无法解析 DeepSeek 返回: ${text}` };
     }
-  }
-
-  // ================= 图片上传与压缩逻辑 =================
-  function handleImageUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const img = new Image();
-      img.onload = function() {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800; // 限制最大宽度，防止照片太大撑爆存储
-        let width = img.width;
-        let height = img.height;
-
-        if (width > MAX_WIDTH) {
-          height = Math.round((height * MAX_WIDTH) / width);
-          width = MAX_WIDTH;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // 压缩质量设为 0.7
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-        
-        currentImageBase64 = compressedBase64;
-        document.getElementById('imagePreview').src = compressedBase64;
-        document.getElementById('imagePreviewContainer').classList.remove('hidden');
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function removeImage() {
-    currentImageBase64 = null;
-    document.getElementById('imageInput').value = '';
-    document.getElementById('imagePreviewContainer').classList.add('hidden');
-  }
-
-  // ================= 保存逻辑 =================
-  function saveDiary() {
-    const title = document.getElementById('editTitle').value.trim();
-    const content = document.getElementById('editContent').value.trim();
     
-    if (!title && !content && !currentImageBase64) {
-      alert('标题、内容、图片至少需要填写一项哦！');
-      return;
-    }
-
-    let diaries = getDiaries();
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-
-    if (currentDiaryId) {
-      const index = diaries.findIndex(d => d.id === currentDiaryId);
-      if (index !== -1) {
-        diaries[index].title = title;
-        diaries[index].content = content;
-        diaries[index].image = currentImageBase64;
-        diaries[index].date = dateStr; 
-        diaries[index].timestamp = now.getTime();
-      }
-    } else {
-      diaries.push({
-        id: Date.now(), 
-        title: title,
-        content: content,
-        image: currentImageBase64,
-        date: dateStr,
-        timestamp: now.getTime()
-      });
-    }
-
-    try {
-      saveDiaries(diaries);
-      closeEditor();
-      renderDiaryList();
-    } catch (error) {
-      alert('保存失败！可能是因为照片太多导致手机存储空间已满。请尝试删除一些旧日记或照片。');
-      console.error(error);
-    }
+    // 3. 把 DeepSeek 的原始状态码和错误原样返回给前端
+    return new Response(JSON.stringify(data), {
+      status: response.status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: `代理请求失败: ${error.message}` }), { 
+      status: 500, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   }
-
-  // 防止 XSS 攻击
-  function escapeHTML(str) {
-    if (!str) return '';
-    return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
-  }
-</script>
-</body>
-</html>
+}
