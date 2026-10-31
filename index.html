@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>DeepSeek 智能助手</title>
 
-<!-- 修复：恢复苹果桌面图标设置 -->
+<!-- 恢复图标 -->
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -58,196 +58,211 @@
 
 <header>
   <div class="title">DeepSeek 智能助手</div>
-  <button class="clear-btn" onclick="clearChat()">清空</button>
+  <button class="clear-btn" id="clearBtn">清空</button>
 </header>
 
 <main id="chatContainer"></main>
 
 <div class="input-area">
   <textarea id="messageInput" rows="1" placeholder="输入内容..."></textarea>
-  <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+  <!-- 去掉了 onclick，改用 js 绑定 -->
+  <button class="send-btn" id="sendBtn">➤</button>
 </div>
 
+<!-- 引入 Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  const VERCEL_PROXY_URL = 'https://leo-pgxa.vercel.app/api/deepseek'; 
-  const SUPABASE_URL = 'https://pitrqhoudtzwhmaejsdk.supabase.co'; 
-  const SUPABASE_ANON_KEY = 'sb_publishable_p8PFT4wTiunwiN7B7R3I2w_356h75Za';
-  
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  const chatContainer = document.getElementById('chatContainer');
-  const messageInput = document.getElementById('messageInput');
-  const sendBtn = document.getElementById('sendBtn');
-  
-  let currentUser = null;
-  let chatHistory = [{ role: 'system', content: '你是一个智能、贴心、准确的 AI 助手。' }];
-
-  // 初始化
-  async function initApp() {
-    chatContainer.innerHTML = '<div class="message ai"><div class="bubble">正在连接数据库...</div></div>';
+  // 确保 DOM 加载完毕后再执行
+  document.addEventListener('DOMContentLoaded', () => {
     
-    try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) throw sessionError;
+    // 1. 检查依赖是否加载成功
+    if (typeof window.supabase === 'undefined') {
+      document.getElementById('chatContainer').innerHTML = '<div class="message ai"><div class="bubble" style="color:red">⚠️ Supabase SDK 加载失败，请检查网络或刷新重试。</div></div>';
+      return;
+    }
 
-      if (!session) {
-        // 尝试匿名登录
-        const { data, error } = await supabase.auth.signInAnonymously();
-        if (error) throw new Error("匿名登录失败: " + error.message + " (请确保已在Supabase后台开启Anonymous Sign-ins)");
-        currentUser = data.user;
+    // 2. 配置信息
+    const VERCEL_PROXY_URL = 'https://leo-pgxa.vercel.app/api/deepseek'; 
+    const SUPABASE_URL = 'https://pitrqhoudtzwhmaejsdk.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'sb_publishable_p8PFT4wTiunwiN7B7R3I2w_356h75Za';
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const chatContainer = document.getElementById('chatContainer');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    
+    let currentUser = null;
+    let chatHistory = [{ role: 'system', content: '你是一个智能、贴心、准确的 AI 助手。' }];
+
+    // 3. 绑定点击事件 (避免内联 onclick 失效)
+    sendBtn.addEventListener('click', sendMessage);
+    clearBtn.addEventListener('click', clearChat);
+
+    // 4. 初始化
+    async function initApp() {
+      chatContainer.innerHTML = '<div class="message ai"><div class="bubble">正在连接数据库...</div></div>';
+      
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) throw sessionError;
+
+        if (!session) {
+          // 匿名登录
+          const { data, error } = await supabase.auth.signInAnonymously();
+          if (error) throw new Error("匿名登录失败: " + error.message + " (请确保已在Supabase后台开启Anonymous Sign-ins)");
+          currentUser = data.user;
+        } else {
+          currentUser = session.user;
+        }
+
+        loadHistory();
+        
+      } catch (err) {
+        chatContainer.innerHTML = '';
+        appendMessage('ai', `⚠️ 连接失败：${err.message}`);
+      }
+    }
+
+    // 5. 加载记录
+    async function loadHistory() {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
+      chatContainer.innerHTML = ''; 
+      
+      if (error) {
+        appendMessage('ai', '加载历史记录失败：' + error.message);
+        return;
+      }
+
+      if (data.length === 0) {
+        appendMessage('ai', '你好！我是 DeepSeek 助手，有什么我可以帮你的吗？');
       } else {
-        currentUser = session.user;
+        data.forEach(msg => appendMessage(msg.role, msg.content));
+        chatHistory = [
+          { role: 'system', content: '你是一个智能、贴心、准确的 AI 助手。' },
+          ...data.map(m => ({ role: m.role, content: m.content }))
+        ];
       }
+    }
 
-      // 登录成功，加载记录
-      loadHistory();
+    // 6. 发送消息
+    async function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text) return;
       
-    } catch (err) {
-      chatContainer.innerHTML = '';
-      appendMessage('ai', `⚠️ 连接失败：${err.message}`);
-    }
-  }
-
-  // 加载记录
-  async function loadHistory() {
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .order('created_at', { ascending: true });
-    
-    chatContainer.innerHTML = ''; 
-    
-    if (error) {
-      appendMessage('ai', '加载历史记录失败：' + error.message);
-      return;
-    }
-
-    if (data.length === 0) {
-      appendMessage('ai', '你好！我是 DeepSeek 助手，有什么我可以帮你的吗？');
-    } else {
-      data.forEach(msg => appendMessage(msg.role, msg.content));
-      chatHistory = [
-        { role: 'system', content: '你是一个智能、贴心、准确的 AI 助手。' },
-        ...data.map(m => ({ role: m.role, content: m.content }))
-      ];
-    }
-  }
-
-  // 发送消息
-  async function sendMessage() {
-    const text = messageInput.value.trim();
-    if (!text) return;
-    
-    // 增加防呆提示
-    if (!currentUser) {
-      alert("正在连接数据库，请稍等几秒再发送... (如果一直这样，请检查Supabase配置或网络)");
-      return;
-    }
-
-    appendMessage('user', text);
-    messageInput.value = '';
-    messageInput.style.height = '52px';
-    
-    chatHistory.push({ role: 'user', content: text });
-
-    // 1. 存入数据库
-    const { error: dbError } = await supabase.from('messages').insert({ 
-      user_id: currentUser.id, 
-      role: 'user', 
-      content: text 
-    });
-    
-    if (dbError) {
-      appendMessage('ai', `⚠️ 消息保存失败：${dbError.message}`);
-      return;
-    }
-
-    sendBtn.disabled = true;
-    const loadingId = appendLoading();
-
-    try {
-      // 2. 请求 AI
-      const response = await fetch(VERCEL_PROXY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: chatHistory }),
-      });
-
-      const data = await response.json();
-      document.getElementById(loadingId)?.remove();
-
-      if (!response.ok) throw new Error(data.error || 'API 请求失败');
-
-      if (data.choices && data.choices[0]) {
-        const aiText = data.choices[0].message.content;
-        appendMessage('ai', aiText);
-        chatHistory.push({ role: 'assistant', content: aiText });
-
-        // 3. 存入 AI 回复
-        await supabase.from('messages').insert({ 
-          user_id: currentUser.id, 
-          role: 'assistant', 
-          content: aiText 
-        });
+      if (!currentUser) {
+        alert("正在连接数据库，请稍等几秒再发送... (如果一直这样，请检查Supabase是否开启了Anonymous Sign-ins)");
+        return;
       }
-    } catch (error) {
-      document.getElementById(loadingId)?.remove();
-      appendMessage('ai', `⚠️ AI 出错: ${error.message}`);
-    } finally {
-      sendBtn.disabled = false;
+
+      appendMessage('user', text);
+      messageInput.value = '';
+      messageInput.style.height = '52px';
+      
+      chatHistory.push({ role: 'user', content: text });
+
+      const { error: dbError } = await supabase.from('messages').insert({ 
+        user_id: currentUser.id, 
+        role: 'user', 
+        content: text 
+      });
+      
+      if (dbError) {
+        appendMessage('ai', `⚠️ 消息保存失败：${dbError.message}`);
+        return;
+      }
+
+      sendBtn.disabled = true;
+      const loadingId = appendLoading();
+
+      try {
+        const response = await fetch(VERCEL_PROXY_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: chatHistory }),
+        });
+
+        const data = await response.json();
+        document.getElementById(loadingId)?.remove();
+
+        if (!response.ok) throw new Error(data.error || 'API 请求失败');
+
+        if (data.choices && data.choices[0]) {
+          const aiText = data.choices[0].message.content;
+          appendMessage('ai', aiText);
+          chatHistory.push({ role: 'assistant', content: aiText });
+
+          await supabase.from('messages').insert({ 
+            user_id: currentUser.id, 
+            role: 'assistant', 
+            content: aiText 
+          });
+        }
+      } catch (error) {
+        document.getElementById(loadingId)?.remove();
+        appendMessage('ai', `⚠️ AI 出错: ${error.message}`);
+      } finally {
+        sendBtn.disabled = false;
+      }
     }
-  }
 
-  function appendMessage(role, text) {
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `message ${role}`;
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble';
-    bubble.textContent = text; 
-    msgDiv.appendChild(bubble);
-    chatContainer.appendChild(msgDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-  }
-
-  function appendLoading() {
-    const id = 'loading-' + Date.now();
-    const msgDiv = document.createElement('div');
-    msgDiv.className = 'message ai';
-    msgDiv.id = id;
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble';
-    bubble.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
-    msgDiv.appendChild(bubble);
-    chatContainer.appendChild(msgDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-    return id;
-  }
-
-  async function clearChat() {
-    if(!currentUser) return;
-    if(!confirm('确定要清空你的专属记录吗？')) return;
-    await supabase.from('messages').delete().eq('user_id', currentUser.id);
-    chatContainer.innerHTML = '';
-    chatHistory = [{ role: 'system', content: '你是一个智能、贴心、准确的 AI 助手。' }];
-    appendMessage('ai', '记录已清空，我们重新开始吧！');
-  }
-
-  messageInput.addEventListener('input', function() {
-    this.style.height = 'auto';
-    this.style.height = (this.scrollHeight) + 'px';
-  });
-
-  messageInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+    // 渲染函数
+    function appendMessage(role, text) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${role}`;
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = text; 
+      msgDiv.appendChild(bubble);
+      chatContainer.appendChild(msgDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
     }
-  });
 
-  initApp();
+    function appendLoading() {
+      const id = 'loading-' + Date.now();
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message ai';
+      msgDiv.id = id;
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+      msgDiv.appendChild(bubble);
+      chatContainer.appendChild(msgDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      return id;
+    }
+
+    async function clearChat() {
+      if(!currentUser) return;
+      if(!confirm('确定要清空你的专属记录吗？')) return;
+      await supabase.from('messages').delete().eq('user_id', currentUser.id);
+      chatContainer.innerHTML = '';
+      chatHistory = [{ role: 'system', content: '你是一个智能、贴心、准确的 AI 助手。' }];
+      appendMessage('ai', '记录已清空，我们重新开始吧！');
+    }
+
+    messageInput.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    messageInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // 执行初始化
+    initApp();
+  });
 </script>
 </body>
 </html>
