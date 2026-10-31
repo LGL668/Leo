@@ -1,28 +1,27 @@
-export const config = { runtime: 'edge' };
+// 文件路径：api/deepseek.js
+module.exports = async (req, res) => {
+  // 1. 设置跨域请求头
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-export default async function handler(req) {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
-
+  // 处理浏览器的预检请求
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return res.status(200).end();
   }
 
-  // 1. 检查 API Key 是否配置
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: '只支持 POST 请求' });
+  }
+
+  // 2. 检查环境变量
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'Vercel 未配置 DEEPSEEK_API_KEY 环境变量' }), { 
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    return res.status(500).json({ error: '服务端未配置 API Key，请检查 Vercel 环境变量' });
   }
 
   try {
-    const body = await req.json();
-    
-    // 2. 请求 DeepSeek
+    // 3. 发送请求给 DeepSeek
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
@@ -30,31 +29,20 @@ export default async function handler(req) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat', 
-        messages: body.messages,
+        model: 'deepseek-chat',
+        messages: req.body.messages,
         stream: false,
         temperature: 0.7,
       }),
     });
 
-    // 获取原始返回文本
-    const text = await response.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      data = { error: `无法解析 DeepSeek 返回: ${text}` };
-    }
+    const data = await response.json();
     
-    // 3. 把 DeepSeek 的原始状态码和错误原样返回给前端
-    return new Response(JSON.stringify(data), {
-      status: response.status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // 4. 将 DeepSeek 的返回结果（包含可能存在的 401）原样返回
+    return res.status(response.status).json(data);
+    
   } catch (error) {
-    return new Response(JSON.stringify({ error: `代理请求失败: ${error.message}` }), { 
-      status: 500, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    console.error('代理请求出错:', error);
+    return res.status(500).json({ error: '代理服务器内部错误: ' + error.message });
   }
-}
+};
