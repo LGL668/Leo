@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>DeepSeek 深度思考助手</title>
+<title>磊哥智能体</title>
+
+<!-- 修改了添加到主屏幕时的名称 -->
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="AI助手">
+<meta name="apple-mobile-web-app-title" content="磊哥智能体">
 
 <style>
   :root{ 
@@ -22,6 +24,7 @@
   body{background: var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden;}
   
   header { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:rgba(255,255,255,0.8); border-bottom:1px solid rgba(0,0,0,0.05); backdrop-filter: blur(10px); z-index: 10;}
+  /* 修改了顶部标题 */
   .title { font-size:18px; font-weight:900; background:linear-gradient(90deg, var(--pink), var(--purple)); -webkit-background-clip:text; background-clip:text; color:transparent;}
   .clear-btn { background:transparent; border:1px solid #ccc; color:#888; padding:6px 12px; border-radius:8px; font-size:13px; cursor:pointer;}
   .clear-btn:hover { border-color:var(--pink); color:var(--pink);}
@@ -37,10 +40,9 @@
 
   @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-  /* 深度思考折叠面板样式 */
   details.think-box { margin-bottom: 10px; font-size: 13px; color: #666; background: #f9f9f9; border-radius: 8px; padding: 10px; border: 1px solid #eee;}
-  details.think-box summary { cursor: pointer; color: #8b5cf6; font-weight: bold; outline: none; user-select: none;}
-  details.think-box p { margin-top: 8px; white-space: pre-wrap; line-height: 1.5; color: #888; border-left: 2px solid #ccc; padding-left: 8px;}
+  details.think-box summary { cursor: pointer; color: #8b5cf6; font-weight: bold; outline: none; }
+  details.think-box p { margin-top: 8px; white-space: pre-wrap; color: #888; border-left: 2px solid #ccc; padding-left: 8px;}
 
   .input-area { padding:15px 20px; background:rgba(255,255,255,0.9); border-top:1px solid rgba(0,0,0,0.05); display:flex; gap:10px; align-items:flex-end; padding-bottom: env(safe-area-inset-bottom, 15px);}
   textarea { flex:1; background:#f5f5f5; border:none; border-radius:12px; padding:14px; font-size:15px; color:var(--text); outline:none; resize:none; max-height:120px; min-height:52px; line-height: 1.5;}
@@ -60,7 +62,8 @@
 <body>
 
 <header>
-  <div class="title">DeepSeek 深度思考助手</div>
+  <!-- 修改了界面上的文字 -->
+  <div class="title">磊哥智能体</div>
   <button class="clear-btn" id="clearBtn">清空</button>
 </header>
 
@@ -92,20 +95,21 @@
     const clearBtn = document.getElementById('clearBtn');
     
     let currentUser = null;
-    let chatHistory = [{ role: 'system', content: '你是一个智能、贴心、准确的 AI 助手。' }];
+    // 修改了系统提示词，让它以磊哥智能体的身份回答
+    let chatHistory = [{ role: 'system', content: '你是磊哥智能体，一个智能、贴心、准确的 AI 助手。' }];
 
     sendBtn.addEventListener('click', sendMessage);
     clearBtn.addEventListener('click', clearChat);
 
     async function initApp() {
-      chatContainer.innerHTML = '<div class="message ai"><div class="bubble">正在连接数据库...</div></div>';
+      chatContainer.innerHTML = '<div class="message ai"><div class="bubble">正在连接云端大脑...</div></div>';
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
         if (!session) {
           const { data, error } = await supabase.auth.signInAnonymously();
-          if (error) throw new Error("匿名登录失败: " + error.message);
+          if (error) throw new Error(`[${error.status}] ${error.message}`);
           currentUser = data.user;
         } else {
           currentUser = session.user;
@@ -113,25 +117,20 @@
         loadHistory();
       } catch (err) {
         chatContainer.innerHTML = '';
-        appendMessage('ai', `⚠️ 连接失败：${err.message}`);
+        appendMessage('ai', `⚠️ 连接失败：\n${err.message}`);
       }
     }
 
     async function loadHistory() {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .order('created_at', { ascending: true });
-      
+      const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: true });
       chatContainer.innerHTML = ''; 
-      if (error) { appendMessage('ai', '加载历史记录失败：' + error.message); return; }
-
+      if (error) { appendMessage('ai', '加载记录失败：' + error.message); return; }
       if (data.length === 0) {
-        appendMessage('ai', '你好！我是已开启深度思考的 AI 助手，有什么我可以帮你的吗？');
+        appendMessage('ai', '你好！我是磊哥智能体，有什么我可以帮你的吗？');
       } else {
         data.forEach(msg => appendMessage(msg.role, msg.content));
         chatHistory = [
-          { role: 'system', content: '你是一个智能、贴心、准确的 AI 助手。' },
+          { role: 'system', content: '你是磊哥智能体，一个智能、贴心、准确的 AI 助手。' },
           ...data.map(m => ({ role: m.role, content: m.content }))
         ];
       }
@@ -157,7 +156,6 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: chatHistory }),
         });
-
         const data = await response.json();
         document.getElementById(loadingId)?.remove();
 
@@ -165,42 +163,32 @@
 
         if (data.choices && data.choices[0]) {
           const aiMsg = data.choices[0].message;
-          const aiText = aiMsg.content;
-          const thinkText = aiMsg.reasoning_content; // 获取思考过程
-
-          appendMessage('ai', aiText, thinkText);
-          chatHistory.push({ role: 'assistant', content: aiText });
-
-          await supabase.from('messages').insert({ user_id: currentUser.id, role: 'assistant', content: aiText });
+          appendMessage('ai', aiMsg.content, aiMsg.reasoning_content);
+          chatHistory.push({ role: 'assistant', content: aiMsg.content });
+          await supabase.from('messages').insert({ user_id: currentUser.id, role: 'assistant', content: aiMsg.content });
         }
       } catch (error) {
         document.getElementById(loadingId)?.remove();
-        appendMessage('ai', `⚠️ AI 出错: ${error.message}`);
+        appendMessage('ai', `⚠️ 请求出错: ${error.message}`);
       } finally {
         sendBtn.disabled = false;
       }
     }
 
-    // 渲染消息（支持渲染思考过程）
     function appendMessage(role, text, thinkText = null) {
       const msgDiv = document.createElement('div');
       msgDiv.className = `message ${role}`;
       const bubble = document.createElement('div');
       bubble.className = 'bubble';
-      
-      // 如果有思考过程，先插入折叠面板
       if (thinkText) {
         const details = document.createElement('details');
         details.className = 'think-box';
         details.innerHTML = `<summary>已深度思考 (点击展开)</summary><p>${thinkText}</p>`;
         bubble.appendChild(details);
       }
-
-      // 插入正式回复
       const textNode = document.createElement('div');
       textNode.textContent = text;
       bubble.appendChild(textNode);
-
       msgDiv.appendChild(bubble);
       chatContainer.appendChild(msgDiv);
       chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -209,12 +197,8 @@
     function appendLoading() {
       const id = 'loading-' + Date.now();
       const msgDiv = document.createElement('div');
-      msgDiv.className = 'message ai';
-      msgDiv.id = id;
-      const bubble = document.createElement('div');
-      bubble.className = 'bubble';
-      bubble.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
-      msgDiv.appendChild(bubble);
+      msgDiv.className = 'message ai'; msgDiv.id = id;
+      msgDiv.innerHTML = '<div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>';
       chatContainer.appendChild(msgDiv);
       chatContainer.scrollTop = chatContainer.scrollHeight;
       return id;
@@ -222,10 +206,10 @@
 
     async function clearChat() {
       if(!currentUser) return;
-      if(!confirm('确定要清空你的专属记录吗？')) return;
+      if(!confirm('确定要清空历史记录吗？')) return;
       await supabase.from('messages').delete().eq('user_id', currentUser.id);
       chatContainer.innerHTML = '';
-      chatHistory = [{ role: 'system', content: '你是一个智能、贴心、准确的 AI 助手。' }];
+      chatHistory = [{ role: 'system', content: '你是磊哥智能体，一个智能、贴心、准确的 AI 助手。' }];
       appendMessage('ai', '记录已清空，我们重新开始吧！');
     }
 
