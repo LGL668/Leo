@@ -2,292 +2,389 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>磊哥智能体</title>
-
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>生日快乐！🎂</title>
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="磊哥智能体">
+<meta name="apple-mobile-web-app-title" content="生日快乐">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
 <style>
-  :root{ 
-    --bg: linear-gradient(135deg, #f0f4ff 0%, #ffeef8 100%);
-    --text: #333333; 
+  :root { 
     --pink: #ff6b9e; 
-    --purple: #8b5cf6;
-    --user-bg: linear-gradient(135deg, #ff6b9e, #ff9ebf);
-    --ai-bg: #ffffff;
+    --purple: #8b5cf6; 
+    --text: #333;
+    --letter-bg: #fffdf5;
+    --env-bg: #f4b4c6;
   }
-  *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
-  body{background: var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden;}
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; -webkit-tap-highlight-color: transparent;}
+  /* 解决手机端高度跳动问题 */
+  html, body { height: 100%; overflow: hidden; touch-action: manipulation; }
+  body { background: linear-gradient(135deg, #ffeef8 0%, #e6e6fa 100%); color: var(--text); }
+
+  /* ================= 第一页：开屏 ================= */
+  #intro-screen {
+    position: fixed; inset: 0; background: rgba(255, 255, 255, 0.95); z-index: 100;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    transition: opacity 0.8s ease;
+  }
+  .gift-box { font-size: 100px; animation: bounce 1.5s infinite; cursor: pointer; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.1)); }
+  .open-btn {
+    margin-top: 30px; padding: 16px 45px; font-size: 18px; font-weight: bold; color: #fff;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    border: none; border-radius: 30px; box-shadow: 0 10px 20px rgba(255, 107, 158, 0.4);
+    cursor: pointer; transition: transform 0.2s; letter-spacing: 2px;
+  }
+  .open-btn:active { transform: scale(0.95); }
+  @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+
+  /* ================= 第二页：世界容器 ================= */
+  #world {
+    position: absolute; inset: 0;
+    display: flex; width: 200%; /* 两个屏幕的宽度 */
+    transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* -------- 场景 1：大蛋糕 -------- */
+  #scene-cake {
+    width: 50%; height: 100%;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    transition: opacity 1s ease;
+    position: relative;
+  }
+
+  /* 大蛋糕制作 */
+  .cake-wrapper {
+    position: relative; width: 280px; height: 260px;
+    transform: scale(0.3); opacity: 0;
+    transition: all 2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    margin-bottom: 50px;
+  }
+  .cake-wrapper.zoom-in { transform: scale(1); opacity: 1; }
+
+  .cake-layer { position: absolute; bottom: 0; border-radius: 15px; box-shadow: inset 0 -15px 30px rgba(0,0,0,0.1); left: 50%; transform: translateX(-50%); }
+  .layer-bottom { height: 90px; background: #f7a8b8; width: 280px; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; }
+  .layer-middle { height: 75px; background: #ffd1dc; width: 240px; bottom: 90px; }
+  .layer-top { height: 60px; background: #fff0f5; width: 190px; bottom: 165px; }
+
+  /* 奶油滴落 */
+  .drip { position: absolute; background: #fff; border-radius: 15px; z-index: 2; }
+  .drip1 { width: 35px; height: 45px; bottom: 75px; left: 20px; }
+  .drip2 { width: 25px; height: 60px; bottom: 60px; left: 70px; }
+  .drip3 { width: 40px; height: 35px; bottom: 80px; right: 25px; }
+  .drip4 { width: 30px; height: 50px; bottom: 65px; right: 70px; }
+  .drip5 { width: 25px; height: 45px; bottom: 150px; left: 60px; }
+  .drip6 { width: 30px; height: 55px; bottom: 140px; right: 60px; }
+
+  /* 樱桃 */
+  .cherry { position: absolute; width: 22px; height: 22px; background: #ff0000; border-radius: 50%; box-shadow: inset -3px -3px 8px rgba(0,0,0,0.3); z-index: 3;}
+  .cherry1 { bottom: 95px; left: 40px; }
+  .cherry2 { bottom: 95px; right: 50px; }
+  .cherry3 { bottom: 180px; left: 80px; }
+
+  /* 蜡烛与火焰 */
+  .candle { 
+    position: absolute; width: 14px; height: 70px; 
+    background: repeating-linear-gradient(45deg, #ff9a9e, #ff9a9e 8px, #fecfef 8px, #fecfef 16px); 
+    bottom: 225px; left: 50%; transform: translateX(-50%); 
+    border-radius: 6px; z-index: 4;
+  }
+  .flame { 
+    position: absolute; top: -25px; left: 50%; transform: translateX(-50%); 
+    width: 20px; height: 35px; background: #ff4500; 
+    border-radius: 50% 50% 20% 20%; box-shadow: 0 0 30px #ff4500, 0 0 60px #ff8c00; 
+    animation: flicker 0.3s infinite alternate; 
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  @keyframes flicker { 0% { transform: translateX(-50%) scale(1) rotate(-3deg); } 100% { transform: translateX(-50%) scale(1.15) rotate(3deg); } }
   
-  header { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:rgba(255,255,255,0.8); border-bottom:1px solid rgba(0,0,0,0.05); backdrop-filter: blur(10px); z-index: 10;}
-  .title { font-size:18px; font-weight:900; background:linear-gradient(90deg, var(--pink), var(--purple)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  /* 烟雾 */
+  .smoke {
+    position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+    width: 10px; height: 10px; background: rgba(200,200,200,0.6);
+    border-radius: 50%; opacity: 0; pointer-events: none;
+  }
+  .smoke.active { animation: rise 2s ease-out forwards; }
+  @keyframes rise { 
+    0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -80px) scale(3); }
+  }
+
+  /* 吹气按钮 */
+  #blow-btn {
+    padding: 15px 35px; font-size: 18px; font-weight: bold; color: #fff;
+    background: rgba(255, 107, 158, 0.8); border: none; border-radius: 30px;
+    box-shadow: 0 5px 15px rgba(255, 107, 158, 0.3); cursor: pointer;
+    transition: opacity 0.5s;
+  }
+  #blow-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #blow-tip { font-size: 15px; color: #888; margin-bottom: 15px; text-align: center; padding: 0 20px;}
+
+  /* -------- 场景 2：信封 -------- */
+  #scene-letter {
+    width: 50%; height: 100%;
+    display: flex; justify-content: center; align-items: center;
+    position: relative;
+  }
+
+  /* 信封容器 */
+  .envelope-wrapper {
+    position: relative; width: 320px; height: 220px;
+    cursor: pointer;
+    animation: float 3s ease-in-out infinite;
+    transition: transform 0.3s;
+  }
+  .envelope-wrapper:hover { transform: scale(1.02); }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+
+  /* 信封的各个面 */
+  .envelope { width: 100%; height: 100%; position: relative; background: var(--env-bg); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+  .env-left, .env-right, .env-bottom { position: absolute; width: 0; height: 0; border-style: solid; }
+  .env-left { border-width: 110px 0 110px 160px; border-color: transparent transparent transparent #e59ab0; z-index: 3; border-radius: 8px 0 0 8px;}
+  .env-right { border-width: 110px 160px 110px 0; border-color: transparent #e59ab0 transparent transparent; right: 0; z-index: 3; border-radius: 0 8px 8px 0;}
+  .env-bottom { border-width: 110px 160px 0 160px; border-color: #f4b4c6 transparent transparent transparent; bottom: 0; left: 0; z-index: 3;}
   
-  .header-actions { display: flex; gap: 10px; }
-  .icon-btn { background:transparent; border:1px solid #ccc; color:#888; padding:6px 12px; border-radius:8px; font-size:13px; cursor:pointer; display:flex; align-items:center;}
-  .icon-btn:hover { border-color:var(--pink); color:var(--pink);}
-  .icon-btn.active { border-color:var(--pink); color:var(--pink); background: rgba(255,107,158,0.1); }
-
-  #chatContainer { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:20px; scroll-behavior: smooth;}
-  .message { display:flex; max-width:85%; animation: fadeIn 0.3s ease-out;}
-  .message.user { align-self: flex-end; justify-content: flex-end;}
-  .message.ai { align-self: flex-start;}
+  /* 信封盖子 (上面) */
+  .env-flap {
+    position: absolute; top: 0; left: 0; width: 0; height: 0;
+    border-width: 130px 160px 0 160px; border-color: #e59ab0 transparent transparent transparent;
+    transform-origin: top; transition: transform 0.8s ease, z-index 0.1s;
+    z-index: 4; border-radius: 8px 8px 0 0;
+  }
   
-  .bubble { padding:14px 18px; border-radius:16px; font-size:15px; line-height:1.6; word-break: break-word; white-space: pre-wrap;}
-  .user .bubble { background:var(--user-bg); color:#fff; border-bottom-right-radius:4px; box-shadow: 0 4px 10px rgba(255, 107, 158, 0.2);}
-  .ai .bubble { background:var(--ai-bg); color:var(--text); border-bottom-left-radius:4px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);}
-
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-  details.think-box { margin-bottom: 10px; font-size: 13px; color: #666; background: #f9f9f9; border-radius: 8px; padding: 10px; border: 1px solid #eee;}
-  details.think-box summary { cursor: pointer; color: #8b5cf6; font-weight: bold; outline: none; }
-  details.think-box p { margin-top: 8px; white-space: pre-wrap; color: #888; border-left: 2px solid #ccc; padding-left: 8px;}
-
-  .input-area { padding:15px 20px; background:rgba(255,255,255,0.9); border-top:1px solid rgba(0,0,0,0.05); display:flex; gap:10px; align-items:flex-end; padding-bottom: env(safe-area-inset-bottom, 15px);}
-  textarea { flex:1; background:#f5f5f5; border:none; border-radius:12px; padding:14px; font-size:15px; color:var(--text); outline:none; resize:none; max-height:120px; min-height:52px; line-height: 1.5;}
-  textarea:focus { background:#fff; box-shadow:0 0 0 2px rgba(255, 107, 158, 0.2);}
+  /* 信纸 */
+  .letter-paper {
+    position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
+    background: var(--letter-bg); border-radius: 4px; z-index: 2;
+    transition: transform 1s ease;
+    padding: 20px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    display: flex; flex-direction: column; justify-content: center;
+    overflow-y: auto;
+  }
   
-  .send-btn { background:linear-gradient(135deg, var(--pink), var(--purple)); color:#fff; border:none; width:52px; height:52px; border-radius:12px; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform 0.1s, opacity 0.2s;}
-  .send-btn:active { transform:scale(0.92);}
-  .send-btn:disabled { opacity: 0.5; cursor:not-allowed;}
+  /* 打开状态 */
+  .envelope-wrapper.open .env-flap { transform: rotateX(180deg); z-index: 1; }
+  .envelope-wrapper.open .letter-paper { transform: translateY(-80px); z-index: 5; height: 350px; top: -80px; }
 
-  .typing { display:flex; gap:4px; padding:8px 4px;}
-  .typing span { width:6px; height:6px; background:#ccc; border-radius:50%; animation: bounce 1.4s infinite ease-in-out both;}
-  .typing span:nth-child(1) { animation-delay: -0.32s; }
-  .typing span:nth-child(2) { animation-delay: -0.16s; }
-  @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+  /* 信纸里的文字 */
+  .letter-content { opacity: 0; transition: opacity 1s ease 0.5s; }
+  .envelope-wrapper.open .letter-content { opacity: 1; }
+  .letter-title { font-size: 22px; font-weight: bold; color: var(--pink); margin-bottom: 15px; }
+  .letter-text { font-size: 15px; line-height: 1.8; color: #444; text-align: left; text-indent: 2em; }
+
+  /* 音乐按钮 */
+  #music-btn { position: fixed; top: 20px; right: 20px; z-index: 100; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.8); border: 1px solid #ddd; display: none; justify-content: center; align-items: center; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+  .rotate { animation: spin 3s linear infinite; }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+
+  /* ================= 手机端自适应缩放 ================= */
+  @media (max-width: 380px) {
+    .cake-wrapper { transform: scale(0.25); }
+    .cake-wrapper.zoom-in { transform: scale(0.85); }
+    .envelope-wrapper { transform: scale(0.85); }
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="title">磊哥智能体</div>
-  <div class="header-actions">
-    <!-- 语音开关按钮 -->
-    <button class="icon-btn" id="voiceBtn" title="开启/关闭语音播报">🔇 朗读</button>
-    <button class="icon-btn" id="clearBtn">清空</button>
-  </div>
-</header>
+<div id="music-btn">🎵</div>
+<audio id="bgm" src="./bgm.mp3" loop></audio>
 
-<main id="chatContainer"></main>
-
-<div class="input-area">
-  <textarea id="messageInput" rows="1" placeholder="输入内容..."></textarea>
-  <button class="send-btn" id="sendBtn">➤</button>
+<!-- 第一页：开屏 -->
+<div id="intro-screen">
+  <div class="gift-box">🎁</div>
+  <button class="open-btn" onclick="openGift()">点击开启惊喜</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 核心容器 -->
+<div id="world">
+  
+  <!-- 场景一：吹蜡烛 -->
+  <div id="scene-cake">
+    <div class="cake-wrapper" id="cake">
+      <div class="cake-layer layer-bottom"></div>
+      <div class="cake-layer layer-middle"></div>
+      <div class="cake-layer layer-top"></div>
+      <div class="drip drip1"></div>
+      <div class="drip drip2"></div>
+      <div class="drip drip3"></div>
+      <div class="drip drip4"></div>
+      <div class="drip drip5"></div>
+      <div class="drip drip6"></div>
+      <div class="cherry cherry1"></div>
+      <div class="cherry cherry2"></div>
+      <div class="cherry cherry3"></div>
+      <div class="candle" id="candle">
+        <div class="flame" id="flame"></div>
+        <div class="smoke" id="smoke"></div>
+      </div>
+    </div>
+
+    <div id="blow-tip">准备好许愿了吗？</div>
+    <button id="blow-btn" onclick="startMic()">点击开始吹蜡烛 🎤</button>
+  </div>
+
+  <!-- 场景二：信封 -->
+  <div id="scene-letter">
+    <div class="envelope-wrapper" id="envelope" onclick="openEnvelope()">
+      <!-- 信纸 -->
+      <div class="letter-paper">
+        <div class="letter-content">
+          <div class="letter-title">生日快乐！</div>
+          <div class="letter-text" id="letter-text">
+            祝你生日快乐！愿你的每一岁都能奔走在自己的热爱里，愿所有的美好都如期而至。感谢你出现在我的生命里，未来的日子，我们也要一起闪闪发光！🎉
+          </div>
+        </div>
+      </div>
+      <!-- 信封外观 -->
+      <div class="envelope">
+        <div class="env-left"></div>
+        <div class="env-right"></div>
+        <div class="env-bottom"></div>
+        <div class="env-flap"></div>
+      </div>
+    </div>
+    <div style="position: absolute; bottom: 15%; font-size: 15px; color: #888; font-weight: bold; animation: bounce 2s infinite;" id="letter-tip">👆 点击信封打开</div>
+  </div>
+
+</div>
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    if (typeof window.supabase === 'undefined') {
-      document.getElementById('chatContainer').innerHTML = '<div class="message ai"><div class="bubble" style="color:red">⚠️ Supabase SDK 加载失败，请刷新重试。</div></div>';
+  const bgm = document.getElementById('bgm');
+  const musicBtn = document.getElementById('music-btn');
+  let isMusicPlaying = false;
+
+  // 1. 开屏与礼花
+  function openGift() {
+    const intro = document.getElementById('intro-screen');
+    intro.style.opacity = '0';
+    setTimeout(() => intro.style.display = 'none', 800);
+
+    musicBtn.style.display = 'flex';
+    musicBtn.classList.add('rotate');
+    bgm.play().then(() => isMusicPlaying = true).catch(e => console.log("音乐被拦截"));
+
+    fireConfetti();
+
+    setTimeout(() => {
+      document.getElementById('cake').classList.add('zoom-in');
+    }, 500);
+  }
+
+  function fireConfetti() {
+    const duration = 2000;
+    const end = Date.now() + duration;
+    (function frame() {
+      confetti({ particleCount: 6, angle: 60, spread: 60, origin: { x: 0, y: 0.8 }, colors: ['#ff6b9e', '#8b5cf6', '#ffd700', '#ff9ebf'], zIndex: 200 });
+      confetti({ particleCount: 6, angle: 120, spread: 60, origin: { x: 1, y: 0.8 }, colors: ['#ff6b9e', '#8b5cf6', '#ffd700', '#ff9ebf'], zIndex: 200 });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    }());
+  }
+
+  // ================= 麦克风与微信环境兼容逻辑 =================
+  let audioContext, analyser, microphone, dataArray;
+  let blowThreshold = 25; 
+  let isBlown = false;
+  let isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+
+  async function startMic() {
+    const btn = document.getElementById('blow-btn');
+    const tip = document.getElementById('blow-tip');
+    
+    // 微信内置浏览器大概率禁用麦克风，直接走手动流程防卡死
+    if (isWeChat) {
+      btn.innerText = "点击吹灭蜡烛 💨";
+      btn.onclick = extinguishCandle;
       return;
     }
 
-    const VERCEL_PROXY_URL = 'https://leo-pgxa.vercel.app/api/deepseek'; 
-    const SUPABASE_URL = 'https://pitrqhoudtzwhmaejsdk.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'sb_publishable_p8PFT4wTiunwiN7B7R3I2w_356h75Za';
-    
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    try {
+      btn.innerText = "正在请求麦克风...";
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // 兼容苹果旧版本
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioContext = new AudioContext();
+      
+      analyser = audioContext.createAnalyser();
+      microphone = audioContext.createMediaStreamSource(stream);
+      analyser.fftSize = 256;
+      microphone.connect(analyser);
+      
+      dataArray = new Uint8Array(analyser.frequencyBinCount);
+      
+      btn.style.display = 'none';
+      tip.innerText = "请对着屏幕下方用力吹气 💨";
+      
+      detectBlow();
+    } catch (err) {
+      // 用户拒绝权限或设备不支持
+      btn.innerText = "点击吹灭蜡烛 💨";
+      btn.onclick = extinguishCandle;
+    }
+  }
 
-    const chatContainer = document.getElementById('chatContainer');
-    const messageInput = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const voiceBtn = document.getElementById('voiceBtn');
+  function detectBlow() {
+    if (isBlown) return;
+    analyser.getByteFrequencyData(dataArray);
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) { sum += dataArray[i]; }
+    let average = sum / dataArray.length;
     
-    let currentUser = null;
-    let chatHistory = [{ role: 'system', content: '你是磊哥智能体，一个智能、贴心、准确的 AI 助手。' }];
-    
-    // 语音相关状态
-    let isVoiceEnabled = false; // 默认关闭
-    let voices = [];
-    
-    // 预加载语音包 (部分浏览器需要)
-    window.speechSynthesis.onvoiceschanged = () => {
-      voices = window.speechSynthesis.getVoices();
-    };
+    // 手机麦克风灵敏度不同，阈值调低一点
+    if (average > blowThreshold) {
+      extinguishCandle();
+    } else {
+      requestAnimationFrame(detectBlow);
+    }
+  }
 
-    sendBtn.addEventListener('click', sendMessage);
-    clearBtn.addEventListener('click', clearChat);
+  // ================= 灭蜡烛与镜头平移 =================
+  function extinguishCandle() {
+    if (isBlown) return;
+    isBlown = true;
     
-    // 语音开关点击事件
-    voiceBtn.addEventListener('click', () => {
-      isVoiceEnabled = !isVoiceEnabled;
-      if (isVoiceEnabled) {
-        voiceBtn.innerHTML = '🔊 朗读';
-        voiceBtn.classList.add('active');
-        speakText("语音播报已开启"); // 测试发音
-      } else {
-        voiceBtn.innerHTML = '🔇 朗读';
-        voiceBtn.classList.remove('active');
-        window.speechSynthesis.cancel(); // 停止当前正在播放的语音
-      }
+    const flame = document.getElementById('flame');
+    const smoke = document.getElementById('smoke');
+    flame.style.opacity = '0';
+    flame.style.transform = 'translateX(-50%) scale(0)';
+    
+    setTimeout(() => smoke.classList.add('active'), 200);
+    document.getElementById('blow-tip').innerText = "呼~ 愿望一定能实现！";
+    document.getElementById('blow-btn').style.display = 'none';
+    
+    setTimeout(() => {
+      // 容器左移 50%，露出右边的信封
+      document.getElementById('world').style.transform = 'translateX(-50%)';
+      
+      setTimeout(() => {
+        document.getElementById('scene-cake').style.opacity = '0';
+      }, 1000);
+      
+    }, 1500);
+  }
+
+  // ================= 拆信 =================
+  function openEnvelope() {
+    const env = document.getElementById('envelope');
+    if (env.classList.contains('open')) return;
+    
+    env.classList.add('open');
+    env.style.animation = 'none';
+    document.getElementById('letter-tip').style.display = 'none';
+    
+    confetti({
+      particleCount: 80,
+      spread: 100,
+      origin: { y: 0.5 },
+      colors: ['#ff6b9e', '#8b5cf6', '#ffd700']
     });
+  }
 
-    async function initApp() {
-      chatContainer.innerHTML = '<div class="message ai"><div class="bubble">正在连接云端大脑...</div></div>';
-      try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-
-        if (!session) {
-          const { data, error } = await supabase.auth.signInAnonymously();
-          if (error) throw new Error(`[${error.status}] ${error.message}`);
-          currentUser = data.user;
-        } else {
-          currentUser = session.user;
-        }
-        loadHistory();
-      } catch (err) {
-        chatContainer.innerHTML = '';
-        appendMessage('ai', `⚠️ 连接失败：\n${err.message}`);
-      }
-    }
-
-    async function loadHistory() {
-      const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: true });
-      chatContainer.innerHTML = ''; 
-      if (error) { appendMessage('ai', '加载记录失败：' + error.message); return; }
-      if (data.length === 0) {
-        appendMessage('ai', '你好！我是磊哥智能体，有什么我可以帮你的吗？');
-      } else {
-        data.forEach(msg => appendMessage(msg.role, msg.content));
-        chatHistory = [
-          { role: 'system', content: '你是磊哥智能体，一个智能、贴心、准确的 AI 助手。' },
-          ...data.map(m => ({ role: m.role, content: m.content }))
-        ];
-      }
-    }
-
-    async function sendMessage() {
-      const text = messageInput.value.trim();
-      if (!text || !currentUser) return;
-
-      // 用户发消息时，停止正在播放的语音
-      window.speechSynthesis.cancel();
-
-      appendMessage('user', text);
-      messageInput.value = '';
-      messageInput.style.height = '52px';
-      chatHistory.push({ role: 'user', content: text });
-
-      await supabase.from('messages').insert({ user_id: currentUser.id, role: 'user', content: text });
-
-      sendBtn.disabled = true;
-      const loadingId = appendLoading();
-
-      try {
-        const response = await fetch(VERCEL_PROXY_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: chatHistory }),
-        });
-        const data = await response.json();
-        document.getElementById(loadingId)?.remove();
-
-        if (!response.ok) throw new Error(data.error || 'API 请求失败');
-
-        if (data.choices && data.choices[0]) {
-          const aiMsg = data.choices[0].message;
-          appendMessage('ai', aiMsg.content, aiMsg.reasoning_content);
-          chatHistory.push({ role: 'assistant', content: aiMsg.content });
-          await supabase.from('messages').insert({ user_id: currentUser.id, role: 'assistant', content: aiMsg.content });
-          
-          // 如果开启了语音，则朗读内容
-          if (isVoiceEnabled) {
-            speakText(aiMsg.content);
-          }
-        }
-      } catch (error) {
-        document.getElementById(loadingId)?.remove();
-        appendMessage('ai', `⚠️ 请求出错: ${error.message}`);
-      } finally {
-        sendBtn.disabled = false;
-      }
-    }
-
-    // 语音合成核心函数
-    function speakText(text) {
-      if (!('speechSynthesis' in window)) {
-        alert("你的浏览器不支持语音播报功能哦~");
-        return;
-      }
-      
-      // 停止之前的朗读
-      window.speechSynthesis.cancel();
-      
-      // 去除 markdown 符号，让朗读更自然
-      const cleanText = text.replace(/[*#`~]/g, '');
-      
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = 'zh-CN'; // 设置中文
-      utterance.rate = 1.1;     // 语速稍微快一点点
-      utterance.pitch = 1.0;    // 音调
-      
-      // 尝试寻找中文语音包
-      if (voices.length === 0) voices = window.speechSynthesis.getVoices();
-      const zhVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('cmn'));
-      if (zhVoice) utterance.voice = zhVoice;
-
-      window.speechSynthesis.speak(utterance);
-    }
-
-    function appendMessage(role, text, thinkText = null) {
-      const msgDiv = document.createElement('div');
-      msgDiv.className = `message ${role}`;
-      const bubble = document.createElement('div');
-      bubble.className = 'bubble';
-      if (thinkText) {
-        const details = document.createElement('details');
-        details.className = 'think-box';
-        details.innerHTML = `<summary>已深度思考 (点击展开)</summary><p>${thinkText}</p>`;
-        bubble.appendChild(details);
-      }
-      const textNode = document.createElement('div');
-      textNode.textContent = text;
-      bubble.appendChild(textNode);
-      msgDiv.appendChild(bubble);
-      chatContainer.appendChild(msgDiv);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    function appendLoading() {
-      const id = 'loading-' + Date.now();
-      const msgDiv = document.createElement('div');
-      msgDiv.className = 'message ai'; msgDiv.id = id;
-      msgDiv.innerHTML = '<div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>';
-      chatContainer.appendChild(msgDiv);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-      return id;
-    }
-
-    async function clearChat() {
-      if(!currentUser) return;
-      if(!confirm('确定要清空历史记录吗？')) return;
-      window.speechSynthesis.cancel(); // 清空时停止朗读
-      await supabase.from('messages').delete().eq('user_id', currentUser.id);
-      chatContainer.innerHTML = '';
-      chatHistory = [{ role: 'system', content: '你是磊哥智能体，一个智能、贴心、准确的 AI 助手。' }];
-      appendMessage('ai', '记录已清空，我们重新开始吧！');
-    }
-
-    messageInput.addEventListener('input', function() {
-      this.style.height = 'auto';
-      this.style.height = (this.scrollHeight) + 'px';
-    });
-
-    messageInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    });
-
-    initApp();
+  musicBtn.addEventListener('click', () => {
+    if (isMusicPlaying) { bgm.pause(); musicBtn.classList.remove('rotate'); } 
+    else { bgm.play(); musicBtn.classList.add('rotate'); }
+    isMusicPlaying = !isMusicPlaying;
   });
 </script>
 </body>
