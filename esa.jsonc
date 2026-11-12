@@ -1,9 +1,0 @@
-{
-  "name": "leo",
-  "installCommand": "",
-  "buildCommand": "",
-  "assets": {
-    "directory": "./",
-    "notFoundStrategy": "singlePageApplication"
-  }
-}
