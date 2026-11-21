@@ -33,7 +33,7 @@
     background-attachment: fixed;
     color: var(--text);
     min-height: 100vh;
-    padding: 26px 16px calc(64px + env(safe-area-inset-bottom));
+    padding: 26px 16px calc(80px + env(safe-area-inset-bottom)); /* 增加底部留白 */
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
     overflow-x: hidden;
@@ -235,11 +235,14 @@
     margin-bottom: 6px;
     font-weight: 600;
   }
+  
   input[type="text"],
   input[type="number"],
   input[type="date"],
   input[type="password"] {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding: 11px 13px;
     border-radius: 11px;
     border: 1.5px solid var(--border);
@@ -270,15 +273,19 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 16px;
+    gap: 10px; /* 增加元素间距 */
   }
   .cal-title {
     font-size: 17px;
     font-weight: 800;
     letter-spacing: -0.3px;
+    flex: 1; /* 让标题占据中间剩余空间 */
+    text-align: center; /* 确保文字居中 */
   }
   .nav-btn {
     width: 44px;
     height: 44px;
+    flex: none; /* 防止被挤压变形 */
     border-radius: 12px;
     border: 1.5px solid var(--btn2);
     background: linear-gradient(135deg, var(--btn1), var(--btn2));
@@ -289,7 +296,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding-bottom: 2px;
+    padding: 0 0 2px 0;
     font-family: inherit;
     transition: filter .18s, transform .18s;
   }
@@ -316,8 +323,8 @@
   }
 
   .day {
-    aspect-ratio: 1 / 0.86;
-    min-height: 52px;
+    aspect-ratio: 1 / 0.9; /* 调整为更方正的格子 */
+    min-height: 54px;
     border-radius: 12px;
     background: #FFFAF0;
     cursor: pointer;
@@ -326,7 +333,7 @@
     align-items: center;
     justify-content: center;
     gap: 2px;
-    padding: 4px 3px;
+    padding: 4px 2px;
     transition: background .15s, transform .15s;
     user-select: none;
     overflow: hidden;
@@ -345,6 +352,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+    padding: 0 1px;
   }
   .day.outside { opacity: 0.32; }
   .day.has-expense { background: #FFF6DF; }
@@ -692,14 +700,11 @@
   }
 
   @media (max-width: 620px) {
-    body { padding: 18px 12px calc(56px + env(safe-area-inset-bottom)); }
+    body { padding: 18px 12px calc(80px + env(safe-area-inset-bottom)); } /* 底部增加空间 */
     .stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .stat.highlight { grid-column: span 2; }
     .stat { padding: 13px 15px; border-radius: 14px; }
     .card { padding: 16px; border-radius: 16px; }
-    .day { min-height: 46px; border-radius: 10px; }
-    .day .num { font-size: 12.5px; }
-    .day .amt { font-size: 9px; }
     .app-header h1 { font-size: 22px; }
     .app-header { align-items: flex-start; }
     .header-actions { width: 100%; }
@@ -710,10 +715,41 @@
       max-height: 92vh;
       border-radius: 20px 20px 0 0;
     }
+    
+    /* 手机端日历格子优化 */
+    .day { 
+      aspect-ratio: 1 / 1; /* 变成正方形 */
+      min-height: 44px; 
+      border-radius: 10px; 
+      gap: 1px;
+    }
+    .day .num { font-size: 13px; }
+    .day .amt { font-size: 9px; }
+    
+    /* 手机端切换按钮缩小一点，防止拥挤 */
+    .nav-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      font-size: 17px;
+    }
+    .cal-title {
+      font-size: 16px;
+    }
+
+    /* 彻底解决手机端日期框超出父容器的问题 */
+    input[type="date"] {
+      -webkit-appearance: none;
+      appearance: none;
+      display: block;
+    }
+    .field {
+      overflow: hidden;
+    }
   }
 
   @media (max-width: 380px) {
-    .day .amt { display: none; }
+    .day .amt { display: none; } /* 特别窄的屏幕，隐藏金额，只显示数字 */
   }
 </style>
 </head>
@@ -886,10 +922,6 @@
 
   /* =========================================================
      ★ 已按你的仓库填好，无需修改 ★
-     owner:  LGL668
-     repo:   Leo
-     branch: main
-     path:   expenses.csv
      ========================================================= */
   const GH_REPO_CONFIG = {
     owner:  'LGL668',
@@ -903,16 +935,12 @@
   const GH_KEY      = 'daily_expense_book_gh_v1';
   const WEEK_NAMES  = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
 
-  /** @type {{id:string,date:string,name:string,amount:number,ts:number}[]} */
   let expenses = [];
   let viewYear = 0;
   let viewMonth = 0;
   let selectedDate = '';
   let toastTimer = null;
 
-  /* =========================================================
-     基础工具
-     ========================================================= */
   const pad2 = n => String(n).padStart(2, '0');
 
   function fmtDate(d) {
@@ -954,9 +982,6 @@
     return true;
   }
 
-  /* =========================================================
-     本地存储
-     ========================================================= */
   function loadData() {
     let parsed = [];
     try {
@@ -984,9 +1009,6 @@
     }
   }
 
-  /* =========================================================
-     CSV 序列化 / 反序列化
-     ========================================================= */
   function csvCell(v) {
     const s = String(v);
     return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -1046,9 +1068,6 @@
     return out;
   }
 
-  /* =========================================================
-     Base64（UTF-8 安全）
-     ========================================================= */
   function toBase64(str) {
     const bytes = new TextEncoder().encode(str);
     let bin = '';
@@ -1065,9 +1084,6 @@
     return new TextDecoder().decode(bytes);
   }
 
-  /* =========================================================
-     GitHub 配置（仓库信息来自常量，Token 存在本地）
-     ========================================================= */
   const gh = {
     token: '',
     owner:  GH_REPO_CONFIG.owner,
@@ -1090,7 +1106,6 @@
         if (typeof o.lastSync === 'number')  gh.lastSync = o.lastSync;
       }
     } catch (e) { /* ignore */ }
-    // 仓库信息永远以代码里的常量为准
     gh.owner  = GH_REPO_CONFIG.owner;
     gh.repo   = GH_REPO_CONFIG.repo;
     gh.branch = GH_REPO_CONFIG.branch;
@@ -1110,9 +1125,6 @@
     return !!(gh.token && isRepoConfigured() && gh.branch && gh.path);
   }
 
-  /* =========================================================
-     GitHub API
-     ========================================================= */
   const API = 'https://api.github.com';
 
   function encPath(p) {
@@ -1176,9 +1188,6 @@
     return res.json();
   }
 
-  /* =========================================================
-     同步操作
-     ========================================================= */
   let syncing = false;
 
   async function syncUpload(silent) {
@@ -1324,9 +1333,6 @@
     }
   }
 
-  /* =========================================================
-     同步 UI
-     ========================================================= */
   function setSyncBar(type, text) {
     const bar = document.getElementById('sync-bar');
     bar.className = 'sync-bar' + (type ? ' ' + type : '');
@@ -1380,7 +1386,6 @@
     gh.token    = document.getElementById('gh-token').value.trim();
     gh.autoPull = document.getElementById('gh-autopull').checked;
     gh.autoPush = document.getElementById('gh-autopush').checked;
-    // owner / repo / branch / path 固定取常量
   }
 
   function handleSaveConfig() {
@@ -1400,9 +1405,6 @@
     showToast('Token 已保存');
   }
 
-  /* =========================================================
-     渲染：统计
-     ========================================================= */
   function renderStats() {
     const now = new Date();
     const todayStr = fmtDate(now);
@@ -1429,9 +1431,6 @@
     document.getElementById('stat-total').textContent = money(totalSum);
   }
 
-  /* =========================================================
-     渲染：日历
-     ========================================================= */
   function renderCalendar() {
     document.getElementById('cal-title').textContent = viewYear + '年' + (viewMonth + 1) + '月';
 
@@ -1480,9 +1479,6 @@
     days.appendChild(frag);
   }
 
-  /* =========================================================
-     渲染：当日明细
-     ========================================================= */
   function renderDayDetail() {
     const d = parseDate(selectedDate);
     const isToday = selectedDate === fmtDate(new Date());
@@ -1526,9 +1522,6 @@
     renderDayDetail();
   }
 
-  /* =========================================================
-     交互逻辑
-     ========================================================= */
   function selectDay(ds) {
     selectedDate = ds;
     const d = parseDate(ds);
@@ -1605,9 +1598,6 @@
     });
   }
 
-  /* =========================================================
-     Toast
-     ========================================================= */
   function showToast(msg, actionText, actionFn) {
     const el = document.getElementById('toast');
     clearTimeout(toastTimer);
@@ -1628,9 +1618,6 @@
     toastTimer = setTimeout(function () { el.classList.remove('show'); }, 3600);
   }
 
-  /* =========================================================
-     事件绑定
-     ========================================================= */
   function bindEvents() {
     document.getElementById('expense-form').addEventListener('submit', handleSubmit);
 
@@ -1665,7 +1652,6 @@
       showToast('已回到今天');
     });
 
-    // ---- 同步弹窗 ----
     document.getElementById('btn-sync').addEventListener('click', openSyncModal);
     document.getElementById('sync-close').addEventListener('click', closeSyncModal);
 
@@ -1700,9 +1686,6 @@
     });
   }
 
-  /* =========================================================
-     初始化
-     ========================================================= */
   function init() {
     loadGH();
     loadData();
