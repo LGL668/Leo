@@ -1,391 +1,1727 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>生日快乐！🎂</title>
-<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="生日快乐">
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#FFFCED" />
+<title>每日消费账本 · 云端同步版</title>
 <style>
-  :root { 
-    --pink: #ff6b9e; 
-    --purple: #8b5cf6; 
-    --text: #333;
-    --letter-bg: #fffdf5;
-    --env-bg: #f4b4c6;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; -webkit-tap-highlight-color: transparent;}
-  /* 解决手机端高度跳动问题 */
-  html, body { height: 100%; overflow: hidden; touch-action: manipulation; }
-  body { background: linear-gradient(135deg, #ffeef8 0%, #e6e6fa 100%); color: var(--text); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* ================= 第一页：开屏 ================= */
-  #intro-screen {
-    position: fixed; inset: 0; background: rgba(255, 255, 255, 0.95); z-index: 100;
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    transition: opacity 0.8s ease;
-  }
-  .gift-box { font-size: 100px; animation: bounce 1.5s infinite; cursor: pointer; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.1)); }
-  .open-btn {
-    margin-top: 30px; padding: 16px 45px; font-size: 18px; font-weight: bold; color: #fff;
-    background: linear-gradient(135deg, var(--pink), var(--purple));
-    border: none; border-radius: 30px; box-shadow: 0 10px 20px rgba(255, 107, 158, 0.4);
-    cursor: pointer; transition: transform 0.2s; letter-spacing: 2px;
-  }
-  .open-btn:active { transform: scale(0.95); }
-  @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
-
-  /* ================= 第二页：世界容器 ================= */
-  #world {
-    position: absolute; inset: 0;
-    display: flex; width: 200%; /* 两个屏幕的宽度 */
-    transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  :root {
+    --bg1: #FFFCF3;
+    --bg2: #FFF3DE;
+    --card: #FFFFFF;
+    --text: #332C1F;
+    --muted: #9C9078;
+    --border: #F1E7D3;
+    --accent: #D9A32B;
+    --accent-deep: #A97710;
+    --btn1: #FFEFB8;
+    --btn2: #FFDC7A;
+    --btn-text: #6B4F0C;
+    --danger: #E4572E;
+    --ok: #3E9E6A;
   }
 
-  /* -------- 场景 1：大蛋糕 -------- */
-  #scene-cake {
-    width: 50%; height: 100%;
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    transition: opacity 1s ease;
-    position: relative;
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(165deg, var(--bg1) 0%, var(--bg2) 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+    padding: 26px 16px calc(64px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
   }
 
-  /* 大蛋糕制作 */
-  .cake-wrapper {
-    position: relative; width: 280px; height: 260px;
-    transform: scale(0.3); opacity: 0;
-    transition: all 2s cubic-bezier(0.2, 0.8, 0.2, 1);
-    margin-bottom: 50px;
+  /* ============ 背景装饰 ============ */
+  .bg-deco {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
   }
-  .cake-wrapper.zoom-in { transform: scale(1); opacity: 1; }
-
-  .cake-layer { position: absolute; bottom: 0; border-radius: 15px; box-shadow: inset 0 -15px 30px rgba(0,0,0,0.1); left: 50%; transform: translateX(-50%); }
-  .layer-bottom { height: 90px; background: #f7a8b8; width: 280px; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; }
-  .layer-middle { height: 75px; background: #ffd1dc; width: 240px; bottom: 90px; }
-  .layer-top { height: 60px; background: #fff0f5; width: 190px; bottom: 165px; }
-
-  /* 奶油滴落 */
-  .drip { position: absolute; background: #fff; border-radius: 15px; z-index: 2; }
-  .drip1 { width: 35px; height: 45px; bottom: 75px; left: 20px; }
-  .drip2 { width: 25px; height: 60px; bottom: 60px; left: 70px; }
-  .drip3 { width: 40px; height: 35px; bottom: 80px; right: 25px; }
-  .drip4 { width: 30px; height: 50px; bottom: 65px; right: 70px; }
-  .drip5 { width: 25px; height: 45px; bottom: 150px; left: 60px; }
-  .drip6 { width: 30px; height: 55px; bottom: 140px; right: 60px; }
-
-  /* 樱桃 */
-  .cherry { position: absolute; width: 22px; height: 22px; background: #ff0000; border-radius: 50%; box-shadow: inset -3px -3px 8px rgba(0,0,0,0.3); z-index: 3;}
-  .cherry1 { bottom: 95px; left: 40px; }
-  .cherry2 { bottom: 95px; right: 50px; }
-  .cherry3 { bottom: 180px; left: 80px; }
-
-  /* 蜡烛与火焰 */
-  .candle { 
-    position: absolute; width: 14px; height: 70px; 
-    background: repeating-linear-gradient(45deg, #ff9a9e, #ff9a9e 8px, #fecfef 8px, #fecfef 16px); 
-    bottom: 225px; left: 50%; transform: translateX(-50%); 
-    border-radius: 6px; z-index: 4;
+  .bg-deco i {
+    position: absolute;
+    display: block;
+    border-radius: 50%;
+    will-change: transform;
   }
-  .flame { 
-    position: absolute; top: -25px; left: 50%; transform: translateX(-50%); 
-    width: 20px; height: 35px; background: #ff4500; 
-    border-radius: 50% 50% 20% 20%; box-shadow: 0 0 30px #ff4500, 0 0 60px #ff8c00; 
-    animation: flicker 0.3s infinite alternate; 
-    transition: opacity 0.5s ease, transform 0.5s ease;
+  .blob {
+    background: radial-gradient(circle at center,
+                rgba(255, 214, 122, .75) 0%,
+                rgba(255, 214, 122, 0) 70%);
   }
-  @keyframes flicker { 0% { transform: translateX(-50%) scale(1) rotate(-3deg); } 100% { transform: translateX(-50%) scale(1.15) rotate(3deg); } }
-  
-  /* 烟雾 */
-  .smoke {
-    position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
-    width: 10px; height: 10px; background: rgba(200,200,200,0.6);
-    border-radius: 50%; opacity: 0; pointer-events: none;
+  .b1 { width: 520px; height: 520px; top: -180px; left: -140px; animation: drift1 26s ease-in-out infinite; }
+  .b2 { width: 440px; height: 440px; bottom: -160px; right: -120px; animation: drift2 32s ease-in-out infinite; }
+  .b3 { width: 360px; height: 360px; top: 42%; left: 58%; animation: drift3 24s ease-in-out infinite; }
+  .b4 { width: 300px; height: 300px; top: 8%; right: 14%; opacity: .7; animation: drift2 30s ease-in-out infinite reverse; }
+
+  .dot {
+    width: 9px; height: 9px;
+    background: rgba(217, 163, 43, .38);
   }
-  .smoke.active { animation: rise 2s ease-out forwards; }
-  @keyframes rise { 
-    0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, -80px) scale(3); }
+  .d1 { top: 14%; left: 8%;   animation: bob 9s ease-in-out infinite; }
+  .d2 { top: 26%; left: 88%;  width: 13px; height: 13px; animation: bob 11s ease-in-out infinite .8s; }
+  .d3 { top: 62%; left: 5%;   width: 6px;  height: 6px;  animation: bob 8s ease-in-out infinite 1.4s; }
+  .d4 { top: 78%; left: 74%;  animation: bob 10s ease-in-out infinite .4s; }
+  .d5 { top: 45%; left: 46%;  width: 6px;  height: 6px;  opacity: .6; animation: bob 12s ease-in-out infinite 2s; }
+  .d6 { top: 90%; left: 30%;  width: 11px; height: 11px; opacity: .5; animation: bob 9.5s ease-in-out infinite 1s; }
+
+  @keyframes drift1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(60px, 50px) scale(1.08); }
+  }
+  @keyframes drift2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-70px, -40px) scale(1.1); }
+  }
+  @keyframes drift3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-40px, 60px) scale(.94); }
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-16px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bg-deco i { animation: none !important; }
   }
 
-  /* 吹气按钮 */
-  #blow-btn {
-    padding: 15px 35px; font-size: 18px; font-weight: bold; color: #fff;
-    background: rgba(255, 107, 158, 0.8); border: none; border-radius: 30px;
-    box-shadow: 0 5px 15px rgba(255, 107, 158, 0.3); cursor: pointer;
-    transition: opacity 0.5s;
-  }
-  #blow-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  #blow-tip { font-size: 15px; color: #888; margin-bottom: 15px; text-align: center; padding: 0 20px;}
+  /* ============ 容器 ============ */
+  .wrap { max-width: 1080px; margin: 0 auto; position: relative; z-index: 1; }
 
-  /* -------- 场景 2：信封 -------- */
-  #scene-letter {
-    width: 50%; height: 100%;
-    display: flex; justify-content: center; align-items: center;
-    position: relative;
+  /* ============ 头部 ============ */
+  .app-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
   }
+  .app-header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #4A3A14;
+  }
+  .app-header h1 em {
+    font-style: normal;
+    background: linear-gradient(120deg, #E0A62A, #F2C64B);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .app-header .sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 5px;
+  }
+  .header-actions { display: flex; gap: 9px; flex-wrap: wrap; }
 
-  /* 信封容器 */
-  .envelope-wrapper {
-    position: relative; width: 320px; height: 220px;
+  /* ============ 按钮 ============ */
+  .btn {
+    min-height: 44px;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 14.5px;
+    font-weight: 700;
     cursor: pointer;
-    animation: float 3s ease-in-out infinite;
-    transition: transform 0.3s;
+    font-family: inherit;
+    border: 1.5px solid var(--btn2);
+    background: linear-gradient(135deg, var(--btn1), var(--btn2));
+    color: var(--btn-text);
+    transition: transform .18s, box-shadow .18s, filter .18s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
   }
-  .envelope-wrapper:hover { transform: scale(1.02); }
-  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+  .btn:hover {
+    filter: brightness(1.03);
+    box-shadow: 0 7px 18px rgba(230, 180, 50, .38);
+    transform: translateY(-1px);
+  }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
 
-  /* 信封的各个面 */
-  .envelope { width: 100%; height: 100%; position: relative; background: var(--env-bg); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-  .env-left, .env-right, .env-bottom { position: absolute; width: 0; height: 0; border-style: solid; }
-  .env-left { border-width: 110px 0 110px 160px; border-color: transparent transparent transparent #e59ab0; z-index: 3; border-radius: 8px 0 0 8px;}
-  .env-right { border-width: 110px 160px 110px 0; border-color: transparent #e59ab0 transparent transparent; right: 0; z-index: 3; border-radius: 0 8px 8px 0;}
-  .env-bottom { border-width: 110px 160px 0 160px; border-color: #f4b4c6 transparent transparent transparent; bottom: 0; left: 0; z-index: 3;}
-  
-  /* 信封盖子 (上面) */
-  .env-flap {
-    position: absolute; top: 0; left: 0; width: 0; height: 0;
-    border-width: 130px 160px 0 160px; border-color: #e59ab0 transparent transparent transparent;
-    transform-origin: top; transition: transform 0.8s ease, z-index 0.1s;
-    z-index: 4; border-radius: 8px 8px 0 0;
+  .btn-soft {
+    background: #FFFDF6;
+    border-color: #F0E3C4;
+    color: var(--btn-text);
   }
-  
-  /* 信纸 */
-  .letter-paper {
-    position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
-    background: var(--letter-bg); border-radius: 4px; z-index: 2;
-    transition: transform 1s ease;
-    padding: 20px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    display: flex; flex-direction: column; justify-content: center;
+  .btn-soft:hover { box-shadow: 0 6px 16px rgba(217, 163, 43, .22); }
+
+  .btn-block { width: 100%; }
+
+  /* ============ 统计 ============ */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 15px 17px;
+    box-shadow: 0 3px 14px rgba(120, 95, 40, .07);
+    transition: transform .2s;
+  }
+  .stat:hover { transform: translateY(-2px); }
+  .stat .label {
+    font-size: 12.5px;
+    color: var(--muted);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .stat .value {
+    font-size: clamp(16px, 2.1vw, 21px);
+    font-weight: 800;
+    margin-top: 6px;
+    letter-spacing: -0.4px;
+    font-variant-numeric: tabular-nums;
+    color: #3E3319;
+  }
+  .stat.highlight {
+    background: linear-gradient(135deg, #FFEFB8, #FFDC7A);
+    border: 1px solid #FFD86B;
+    box-shadow: 0 8px 22px rgba(240, 190, 60, .35);
+  }
+  .stat.highlight .label { color: #8A6A18; }
+  .stat.highlight .value { color: #5E4409; }
+
+  /* ============ 布局 ============ */
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 3px 14px rgba(120, 95, 40, .07);
+    margin-bottom: 18px;
+  }
+  .card h2 {
+    font-size: 15px;
+    font-weight: 800;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  /* ============ 表单 ============ */
+  .field { margin-bottom: 13px; }
+  .field label {
+    display: block;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="password"] {
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: 11px;
+    border: 1.5px solid var(--border);
+    background: #FFFDF8;
+    font-size: 15px;
+    color: var(--text);
+    outline: none;
+    transition: border-color .18s, box-shadow .18s, background .18s;
+    font-family: inherit;
+    min-height: 44px;
+  }
+  input:focus {
+    border-color: #F0C24A;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(245, 200, 90, .22);
+  }
+  input::placeholder { color: #C0B6A0; }
+  input[type="number"] { -moz-appearance: textfield; }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* ============ 日历 ============ */
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .cal-title {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+  }
+  .nav-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1.5px solid var(--btn2);
+    background: linear-gradient(135deg, var(--btn1), var(--btn2));
+    cursor: pointer;
+    font-size: 19px;
+    line-height: 1;
+    color: var(--btn-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 2px;
+    font-family: inherit;
+    transition: filter .18s, transform .18s;
+  }
+  .nav-btn:hover { filter: brightness(1.04); transform: translateY(-1px); }
+
+  .weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .weekdays span {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 700;
+    padding: 4px 0;
+  }
+
+  .days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .day {
+    aspect-ratio: 1 / 0.86;
+    min-height: 52px;
+    border-radius: 12px;
+    background: #FFFAF0;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 3px;
+    transition: background .15s, transform .15s;
+    user-select: none;
+    overflow: hidden;
+  }
+  .day:hover { background: #FFF3DA; transform: translateY(-1px); }
+  .day .num {
+    font-size: 13.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .day .amt {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--accent-deep);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .day.outside { opacity: 0.32; }
+  .day.has-expense { background: #FFF6DF; }
+  .day.today { box-shadow: inset 0 0 0 1.8px #F0C24A; }
+  .day.selected {
+    background: linear-gradient(135deg, #FFE9A8, #FFD979);
+    box-shadow: 0 6px 16px rgba(240, 190, 60, .45);
+  }
+  .day.selected .num { color: #5E4409; }
+  .day.selected .amt { color: #7A5A10; }
+
+  .legend {
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    line-height: 1.5;
+  }
+  .legend::before {
+    content: "";
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: .8;
+    flex: none;
+  }
+
+  /* ============ 明细 ============ */
+  .weekday { font-weight: 500; color: var(--muted); font-size: 13px; }
+  .badge {
+    font-size: 11px;
+    font-weight: 800;
+    color: #6B4F0C;
+    background: linear-gradient(135deg, #FFEFB8, #FFDC7A);
+    border: 1px solid #FFD86B;
+    padding: 2px 9px;
+    border-radius: 20px;
+  }
+
+  .detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 320px;
     overflow-y: auto;
+    margin: -2px -2px 0;
+    padding: 2px;
   }
-  
-  /* 打开状态 */
-  .envelope-wrapper.open .env-flap { transform: rotateX(180deg); z-index: 1; }
-  .envelope-wrapper.open .letter-paper { transform: translateY(-80px); z-index: 5; height: 350px; top: -80px; }
+  .detail-list::-webkit-scrollbar { width: 5px; }
+  .detail-list::-webkit-scrollbar-thumb { background: #EADFC6; border-radius: 4px; }
 
-  /* 信纸里的文字 */
-  .letter-content { opacity: 0; transition: opacity 1s ease 0.5s; }
-  .envelope-wrapper.open .letter-content { opacity: 1; }
-  .letter-title { font-size: 22px; font-weight: bold; color: var(--pink); margin-bottom: 15px; }
-  .letter-text { font-size: 15px; line-height: 1.8; color: #444; text-align: left; text-indent: 2em; }
+  .detail-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 13px;
+    background: #FFFAF0;
+    border-radius: 12px;
+    transition: background .15s;
+  }
+  .detail-item:hover { background: #FFF3DA; }
+  .detail-item .info { flex: 1; min-width: 0; }
+  .detail-item .name {
+    font-size: 14.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .detail-item .amount {
+    font-size: 14.5px;
+    font-weight: 800;
+    color: var(--accent-deep);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .del-btn {
+    flex: none;
+    background: none;
+    border: none;
+    color: #C7BCA4;
+    cursor: pointer;
+    font-size: 13px;
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: .15s;
+    font-family: inherit;
+  }
+  .del-btn:hover { color: var(--danger); background: #FDEBE4; }
 
-  /* 音乐按钮 */
-  #music-btn { position: fixed; top: 20px; right: 20px; z-index: 100; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.8); border: 1px solid #ddd; display: none; justify-content: center; align-items: center; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-  .rotate { animation: spin 3s linear infinite; }
-  @keyframes spin { 100% { transform: rotate(360deg); } }
+  .detail-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 13px;
+    padding-top: 13px;
+    border-top: 1.5px dashed var(--border);
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .detail-total strong {
+    font-size: 17px;
+    color: var(--accent-deep);
+    font-weight: 800;
+    margin-left: 4px;
+    font-variant-numeric: tabular-nums;
+  }
 
-  /* ================= 手机端自适应缩放 ================= */
+  .empty {
+    text-align: center;
+    padding: 26px 10px;
+    color: var(--muted);
+    font-size: 13.5px;
+    line-height: 1.7;
+  }
+  .empty::before {
+    content: "🧾";
+    display: block;
+    font-size: 28px;
+    margin-bottom: 8px;
+    opacity: .75;
+  }
+
+  /* ============ 云端状态条 ============ */
+  .sync-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--muted);
+    background: #FFFDF5;
+    border: 1px dashed #F0E3C4;
+    border-radius: 12px;
+    padding: 9px 13px;
+    margin-bottom: 13px;
+    line-height: 1.5;
+    word-break: break-all;
+  }
+  .sync-bar .dot-ind {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #D8CDB4;
+    flex: none;
+  }
+  .sync-bar.ok   .dot-ind { background: var(--ok); }
+  .sync-bar.err  .dot-ind { background: var(--danger); }
+  .sync-bar.busy .dot-ind { background: #E8B33A; animation: blink .9s infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+
+  /* ============ 弹窗 ============ */
+  .modal-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(60, 46, 16, .42);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+  }
+  .modal-mask[hidden] { display: none; }
+
+  .modal {
+    background: #FFFCF4;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 460px;
+    max-height: calc(100vh - 36px);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 60px rgba(70, 50, 10, .32);
+    overflow: hidden;
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 17px 20px;
+    border-bottom: 1px solid var(--border);
+    flex: none;
+  }
+  .modal-head h2 { font-size: 16px; font-weight: 800; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    border: none;
+    background: #F7F1E2;
+    color: #8A7A57;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    transition: .15s;
+  }
+  .icon-btn:hover { background: #F0E6CF; color: #5E4C24; }
+
+  .modal-body {
+    padding: 18px 20px 20px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal-body::-webkit-scrollbar { width: 6px; }
+  .modal-body::-webkit-scrollbar-thumb { background: #EADFC6; border-radius: 4px; }
+
+  .modal-note {
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.75;
+    background: #FFFAF0;
+    border-radius: 12px;
+    padding: 11px 13px;
+    margin-bottom: 15px;
+    word-break: break-all;
+  }
+  .modal-note b { color: var(--accent-deep); }
+
+  .help {
+    font-size: 12.5px;
+    color: var(--muted);
+    background: #FFFDF5;
+    border: 1px dashed #F0E3C4;
+    border-radius: 12px;
+    padding: 10px 13px;
+    margin-bottom: 15px;
+    line-height: 1.75;
+  }
+  .help summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--accent-deep);
+    outline: none;
+    list-style: none;
+  }
+  .help summary::-webkit-details-marker { display: none; }
+  .help summary::before { content: "❔ "; }
+  .help ol { margin: 9px 0 0 18px; }
+  .help li { margin-bottom: 5px; }
+
+  .pwd-wrap { position: relative; }
+  .pwd-wrap input { padding-right: 52px; }
+  .pwd-toggle {
+    position: absolute;
+    right: 6px; top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-family: inherit;
+  }
+  .pwd-toggle:hover { background: #F5EEDC; color: var(--accent-deep); }
+
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13.5px;
+    color: #6A5C3E;
+    margin: 4px 0 13px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .check-row input {
+    width: 18px; height: 18px;
+    min-height: 0;
+    accent-color: #E8B33A;
+    cursor: pointer;
+    flex: none;
+  }
+
+  .modal-actions { display: flex; flex-direction: column; gap: 9px; margin-top: 4px; }
+  .modal-status {
+    margin-top: 13px;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.6;
+    word-break: break-all;
+    min-height: 18px;
+  }
+  .modal-status.err { color: var(--danger); }
+  .modal-status.ok { color: var(--ok); }
+
+  /* ============ Toast ============ */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(28px + env(safe-area-inset-bottom));
+    transform: translate(-50%, 20px);
+    background: #3D3418;
+    color: #FFF8E6;
+    padding: 13px 20px;
+    border-radius: 13px;
+    font-size: 13.5px;
+    font-weight: 600;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .28);
+    opacity: 0;
+    pointer-events: none;
+    transition: .26s;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    z-index: 300;
+    max-width: calc(100vw - 32px);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    pointer-events: auto;
+  }
+  .toast-btn {
+    background: rgba(255, 235, 170, .18);
+    border: none;
+    color: #FFDF8E;
+    font-weight: 800;
+    font-size: 13px;
+    padding: 6px 13px;
+    border-radius: 9px;
+    cursor: pointer;
+    flex: none;
+    font-family: inherit;
+  }
+  .toast-btn:hover { background: rgba(255, 235, 170, .3); }
+
+  /* ============ 响应式 ============ */
+  @media (max-width: 900px) {
+    .stats { grid-template-columns: repeat(3, 1fr); }
+    .layout { grid-template-columns: 1fr; }
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    input[type="password"] { font-size: 16px; }
+  }
+
+  @media (max-width: 620px) {
+    body { padding: 18px 12px calc(56px + env(safe-area-inset-bottom)); }
+    .stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat.highlight { grid-column: span 2; }
+    .stat { padding: 13px 15px; border-radius: 14px; }
+    .card { padding: 16px; border-radius: 16px; }
+    .day { min-height: 46px; border-radius: 10px; }
+    .day .num { font-size: 12.5px; }
+    .day .amt { font-size: 9px; }
+    .app-header h1 { font-size: 22px; }
+    .app-header { align-items: flex-start; }
+    .header-actions { width: 100%; }
+    .header-actions .btn { flex: 1; }
+    .modal-mask { padding: 0; align-items: flex-end; }
+    .modal {
+      max-width: 100%;
+      max-height: 92vh;
+      border-radius: 20px 20px 0 0;
+    }
+  }
+
   @media (max-width: 380px) {
-    .cake-wrapper { transform: scale(0.25); }
-    .cake-wrapper.zoom-in { transform: scale(0.85); }
-    .envelope-wrapper { transform: scale(0.85); }
+    .day .amt { display: none; }
   }
 </style>
 </head>
 <body>
 
-<div id="music-btn">🎵</div>
-<audio id="bgm" src="./bgm.mp3" loop></audio>
-
-<!-- 第一页：开屏 -->
-<div id="intro-screen">
-  <div class="gift-box">🎁</div>
-  <button class="open-btn" onclick="openGift()">点击开启惊喜</button>
+<!-- 背景装饰 -->
+<div class="bg-deco" aria-hidden="true">
+  <i class="blob b1"></i>
+  <i class="blob b2"></i>
+  <i class="blob b3"></i>
+  <i class="blob b4"></i>
+  <i class="dot d1"></i>
+  <i class="dot d2"></i>
+  <i class="dot d3"></i>
+  <i class="dot d4"></i>
+  <i class="dot d5"></i>
+  <i class="dot d6"></i>
 </div>
 
-<!-- 核心容器 -->
-<div id="world">
-  
-  <!-- 场景一：吹蜡烛 -->
-  <div id="scene-cake">
-    <div class="cake-wrapper" id="cake">
-      <div class="cake-layer layer-bottom"></div>
-      <div class="cake-layer layer-middle"></div>
-      <div class="cake-layer layer-top"></div>
-      <div class="drip drip1"></div>
-      <div class="drip drip2"></div>
-      <div class="drip drip3"></div>
-      <div class="drip drip4"></div>
-      <div class="drip drip5"></div>
-      <div class="drip drip6"></div>
-      <div class="cherry cherry1"></div>
-      <div class="cherry cherry2"></div>
-      <div class="cherry cherry3"></div>
-      <div class="candle" id="candle">
-        <div class="flame" id="flame"></div>
-        <div class="smoke" id="smoke"></div>
-      </div>
+<div class="wrap">
+
+  <header class="app-header">
+    <div>
+      <h1>每日消费<em>账本</em></h1>
+      <p class="sub">记录每一笔支出，云端同步不怕丢</p>
     </div>
+    <div class="header-actions">
+      <button class="btn btn-soft" id="btn-sync" type="button">☁️ 云端同步</button>
+      <button class="btn" id="btn-today" type="button">回到今天</button>
+    </div>
+  </header>
 
-    <div id="blow-tip">准备好许愿了吗？</div>
-    <button id="blow-btn" onclick="startMic()">点击开始吹蜡烛 🎤</button>
-  </div>
+  <!-- 统计 -->
+  <section class="stats">
+    <div class="stat highlight">
+      <div class="label">今日消费</div>
+      <div class="value" id="stat-today">¥0.00</div>
+    </div>
+    <div class="stat">
+      <div class="label">本周消费</div>
+      <div class="value" id="stat-week">¥0.00</div>
+    </div>
+    <div class="stat">
+      <div class="label">本月消费</div>
+      <div class="value" id="stat-month">¥0.00</div>
+    </div>
+    <div class="stat">
+      <div class="label">本年消费</div>
+      <div class="value" id="stat-year">¥0.00</div>
+    </div>
+    <div class="stat">
+      <div class="label">历史总计</div>
+      <div class="value" id="stat-total">¥0.00</div>
+    </div>
+  </section>
 
-  <!-- 场景二：信封 -->
-  <div id="scene-letter">
-    <div class="envelope-wrapper" id="envelope" onclick="openEnvelope()">
-      <!-- 信纸 -->
-      <div class="letter-paper">
-        <div class="letter-content">
-          <div class="letter-title">生日快乐！</div>
-          <div class="letter-text" id="letter-text">
-            祝你生日快乐！愿你的每一岁都能奔走在自己的热爱里，愿所有的美好都如期而至。感谢你出现在我的生命里，未来的日子，我们也要一起闪闪发光！🎉
+  <div class="layout">
+
+    <!-- 左侧 -->
+    <aside>
+      <section class="card">
+        <h2>➕ 添加一笔消费</h2>
+        <div class="sync-bar" id="sync-bar">
+          <span class="dot-ind"></span>
+          <span id="sync-bar-text">云端同步未配置</span>
+        </div>
+        <form id="expense-form" autocomplete="off">
+          <div class="field">
+            <label for="expense-name">消费项目</label>
+            <input type="text" id="expense-name" placeholder="例如：午餐、地铁、咖啡…" maxlength="30" />
           </div>
+          <div class="field">
+            <label for="expense-amount">金额（元）</label>
+            <input type="number" id="expense-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
+          </div>
+          <div class="field">
+            <label for="expense-date">日期</label>
+            <input type="date" id="expense-date" />
+          </div>
+          <button type="submit" class="btn btn-block">保存记录</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2 id="detail-title">📋 当日明细</h2>
+        <div id="detail-body"></div>
+      </section>
+    </aside>
+
+    <!-- 右侧日历 -->
+    <main>
+      <section class="card">
+        <div class="cal-header">
+          <button class="nav-btn" id="prev-month" type="button" aria-label="上个月">‹</button>
+          <div class="cal-title" id="cal-title">—</div>
+          <button class="nav-btn" id="next-month" type="button" aria-label="下个月">›</button>
+        </div>
+        <div class="weekdays">
+          <span>一</span><span>二</span><span>三</span><span>四</span>
+          <span>五</span><span>六</span><span>日</span>
+        </div>
+        <div class="days" id="days"></div>
+        <div class="legend">格子中显示当日消费金额 · 点击某一天查看明细</div>
+      </section>
+    </main>
+
+  </div>
+</div>
+
+<!-- 云端同步弹窗（简化版：只填 Token） -->
+<div class="modal-mask" id="sync-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sync-title">
+    <div class="modal-head">
+      <h2 id="sync-title">☁️ GitHub 云端同步</h2>
+      <button class="icon-btn" id="sync-close" type="button" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="modal-note">
+        账本会以 <b>CSV 表格</b> 的形式保存在
+        <b id="gh-target-info">—</b>
+        中。只需要填入你的 Token，仓库信息已写在代码里。
+      </div>
+
+      <details class="help">
+        <summary>如何获取 Token？</summary>
+        <ol>
+          <li>GitHub → Settings → Developer settings → Personal access tokens →
+              <b>Fine-grained tokens</b> → Generate new token</li>
+          <li>Repository access 选 <b>Only select repositories</b>，勾选 <b>Leo</b> 仓库</li>
+          <li>Repository permissions → <b>Contents</b> 设为 <b>Read and write</b></li>
+          <li>生成后复制 Token，粘贴到下方输入框</li>
+        </ol>
+      </details>
+
+      <div class="field">
+        <label for="gh-token">Personal Access Token</label>
+        <div class="pwd-wrap">
+          <input type="password" id="gh-token" placeholder="github_pat_..." autocapitalize="off" autocorrect="off" spellcheck="false" />
+          <button class="pwd-toggle" id="pwd-toggle" type="button">显示</button>
         </div>
       </div>
-      <!-- 信封外观 -->
-      <div class="envelope">
-        <div class="env-left"></div>
-        <div class="env-right"></div>
-        <div class="env-bottom"></div>
-        <div class="env-flap"></div>
-      </div>
-    </div>
-    <div style="position: absolute; bottom: 15%; font-size: 15px; color: #888; font-weight: bold; animation: bounce 2s infinite;" id="letter-tip">👆 点击信封打开</div>
-  </div>
 
+      <label class="check-row" for="gh-autopull">
+        <input type="checkbox" id="gh-autopull" />
+        <span>打开页面时自动读取云端表格</span>
+      </label>
+
+      <label class="check-row" for="gh-autopush">
+        <input type="checkbox" id="gh-autopush" />
+        <span>每次保存记录后自动上传</span>
+      </label>
+
+      <div class="modal-actions">
+        <button class="btn btn-block" id="btn-save-config" type="button">保存 Token</button>
+        <button class="btn btn-soft btn-block" id="btn-pull" type="button">⬇️ 从云端拉取表格</button>
+        <button class="btn btn-soft btn-block" id="btn-push" type="button">⬆️ 立即上传到云端</button>
+      </div>
+
+      <div class="modal-status" id="modal-status"></div>
+    </div>
+  </div>
 </div>
 
+<div class="toast" id="toast"></div>
+
 <script>
-  const bgm = document.getElementById('bgm');
-  const musicBtn = document.getElementById('music-btn');
-  let isMusicPlaying = false;
+(function () {
+  'use strict';
 
-  // 1. 开屏与礼花
-  function openGift() {
-    const intro = document.getElementById('intro-screen');
-    intro.style.opacity = '0';
-    setTimeout(() => intro.style.display = 'none', 800);
+  /* =========================================================
+     ★ 已按你的仓库填好，无需修改 ★
+     owner:  LGL668
+     repo:   Leo
+     branch: main
+     path:   expenses.csv
+     ========================================================= */
+  const GH_REPO_CONFIG = {
+    owner:  'LGL668',
+    repo:   'Leo',
+    branch: 'main',
+    path:   'expenses.csv'
+  };
+  /* ========================================================= */
 
-    musicBtn.style.display = 'flex';
-    musicBtn.classList.add('rotate');
-    bgm.play().then(() => isMusicPlaying = true).catch(e => console.log("音乐被拦截"));
+  const STORAGE_KEY = 'daily_expense_book_v1';
+  const GH_KEY      = 'daily_expense_book_gh_v1';
+  const WEEK_NAMES  = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
 
-    fireConfetti();
+  /** @type {{id:string,date:string,name:string,amount:number,ts:number}[]} */
+  let expenses = [];
+  let viewYear = 0;
+  let viewMonth = 0;
+  let selectedDate = '';
+  let toastTimer = null;
 
-    setTimeout(() => {
-      document.getElementById('cake').classList.add('zoom-in');
-    }, 500);
+  /* =========================================================
+     基础工具
+     ========================================================= */
+  const pad2 = n => String(n).padStart(2, '0');
+
+  function fmtDate(d) {
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function parseDate(s) {
+    const p = s.split('-').map(Number);
+    return new Date(p[0], p[1] - 1, p[2]);
+  }
+  function money(n) {
+    const v = Number(n) || 0;
+    return '¥' + v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function moneyShort(n) {
+    if (n >= 1e8) return (n / 1e8).toFixed(2).replace(/\.?0+$/, '') + '亿';
+    if (n >= 1e4) return (n / 1e4).toFixed(1).replace(/\.0$/, '') + '万';
+    if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'k';
+    return String(Math.round(n * 100) / 100);
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+  function hashStr(s) {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+    return h.toString(36);
+  }
+  function normalizeIds() {
+    expenses.forEach((e, i) => {
+      e.id = 'r' + hashStr(e.date + '|' + e.name + '|' + e.amount + '|' + e.ts) + '-' + i;
+    });
+  }
+  function isRepoConfigured() {
+    const o = GH_REPO_CONFIG.owner, r = GH_REPO_CONFIG.repo;
+    if (!o || !r) return false;
+    if (o === 'YOUR_GITHUB_USERNAME' || r === 'YOUR_REPO_NAME') return false;
+    return true;
   }
 
-  function fireConfetti() {
-    const duration = 2000;
-    const end = Date.now() + duration;
-    (function frame() {
-      confetti({ particleCount: 6, angle: 60, spread: 60, origin: { x: 0, y: 0.8 }, colors: ['#ff6b9e', '#8b5cf6', '#ffd700', '#ff9ebf'], zIndex: 200 });
-      confetti({ particleCount: 6, angle: 120, spread: 60, origin: { x: 1, y: 0.8 }, colors: ['#ff6b9e', '#8b5cf6', '#ffd700', '#ff9ebf'], zIndex: 200 });
-      if (Date.now() < end) requestAnimationFrame(frame);
-    }());
-  }
-
-  // ================= 麦克风与微信环境兼容逻辑 =================
-  let audioContext, analyser, microphone, dataArray;
-  let blowThreshold = 25; 
-  let isBlown = false;
-  let isWeChat = /MicroMessenger/i.test(navigator.userAgent);
-
-  async function startMic() {
-    const btn = document.getElementById('blow-btn');
-    const tip = document.getElementById('blow-tip');
-    
-    // 微信内置浏览器大概率禁用麦克风，直接走手动流程防卡死
-    if (isWeChat) {
-      btn.innerText = "点击吹灭蜡烛 💨";
-      btn.onclick = extinguishCandle;
-      return;
-    }
-
+  /* =========================================================
+     本地存储
+     ========================================================= */
+  function loadData() {
+    let parsed = [];
     try {
-      btn.innerText = "正在请求麦克风...";
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // 兼容苹果旧版本
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      audioContext = new AudioContext();
-      
-      analyser = audioContext.createAnalyser();
-      microphone = audioContext.createMediaStreamSource(stream);
-      analyser.fftSize = 256;
-      microphone.connect(analyser);
-      
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
-      
-      btn.style.display = 'none';
-      tip.innerText = "请对着屏幕下方用力吹气 💨";
-      
-      detectBlow();
-    } catch (err) {
-      // 用户拒绝权限或设备不支持
-      btn.innerText = "点击吹灭蜡烛 💨";
-      btn.onclick = extinguishCandle;
+      const raw = localStorage.getItem(STORAGE_KEY);
+      parsed = raw ? JSON.parse(raw) : [];
+    } catch (e) { parsed = []; }
+
+    expenses = (Array.isArray(parsed) ? parsed : [])
+      .filter(e => e && typeof e.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date))
+      .map(e => ({
+        id: '',
+        date: e.date,
+        name: String(e.name || '未命名'),
+        amount: Math.round((Number(e.amount) || 0) * 100) / 100,
+        ts: Number(e.ts) || 0
+      }));
+
+    normalizeIds();
+  }
+  function saveData() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+    } catch (e) {
+      showToast('本地保存失败：浏览器存储空间不足');
     }
   }
 
-  function detectBlow() {
-    if (isBlown) return;
-    analyser.getByteFrequencyData(dataArray);
-    let sum = 0;
-    for (let i = 0; i < dataArray.length; i++) { sum += dataArray[i]; }
-    let average = sum / dataArray.length;
-    
-    // 手机麦克风灵敏度不同，阈值调低一点
-    if (average > blowThreshold) {
-      extinguishCandle();
-    } else {
-      requestAnimationFrame(detectBlow);
+  /* =========================================================
+     CSV 序列化 / 反序列化
+     ========================================================= */
+  function csvCell(v) {
+    const s = String(v);
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function toCSV() {
+    const sorted = expenses.slice().sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return (a.ts || 0) - (b.ts || 0);
+    });
+    const lines = ['日期,项目,金额,时间戳'];
+    for (const e of sorted) {
+      lines.push([e.date, csvCell(e.name), e.amount.toFixed(2), String(e.ts || 0)].join(','));
     }
+    return lines.join('\n') + '\n';
   }
 
-  // ================= 灭蜡烛与镜头平移 =================
-  function extinguishCandle() {
-    if (isBlown) return;
-    isBlown = true;
-    
-    const flame = document.getElementById('flame');
-    const smoke = document.getElementById('smoke');
-    flame.style.opacity = '0';
-    flame.style.transform = 'translateX(-50%) scale(0)';
-    
-    setTimeout(() => smoke.classList.add('active'), 200);
-    document.getElementById('blow-tip').innerText = "呼~ 愿望一定能实现！";
-    document.getElementById('blow-btn').style.display = 'none';
-    
-    setTimeout(() => {
-      // 容器左移 50%，露出右边的信封
-      document.getElementById('world').style.transform = 'translateX(-50%)';
-      
-      setTimeout(() => {
-        document.getElementById('scene-cake').style.opacity = '0';
-      }, 1000);
-      
-    }, 1500);
+  function parseCSVRows(text) {
+    const rows = [];
+    let row = [], field = '', inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else inQuotes = false;
+        } else {
+          field += c;
+        }
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ',') { row.push(field); field = ''; }
+        else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+        else if (c === '\r') { /* ignore */ }
+        else field += c;
+      }
+    }
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    return rows;
   }
 
-  // ================= 拆信 =================
-  function openEnvelope() {
-    const env = document.getElementById('envelope');
-    if (env.classList.contains('open')) return;
-    
-    env.classList.add('open');
-    env.style.animation = 'none';
-    document.getElementById('letter-tip').style.display = 'none';
-    
-    confetti({
-      particleCount: 80,
-      spread: 100,
-      origin: { y: 0.5 },
-      colors: ['#ff6b9e', '#8b5cf6', '#ffd700']
+  function fromCSV(text) {
+    text = String(text || '').replace(/^\uFEFF/, '');
+    const rows = parseCSVRows(text);
+    const out = [];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || !r.length) continue;
+      if (i === 0 && /日期|date/i.test(r[0] || '')) continue;
+      const date = (r[0] || '').trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+      const name   = (r[1] || '').trim() || '未命名';
+      const amount = Math.round((parseFloat(r[2]) || 0) * 100) / 100;
+      const ts     = parseInt(r[3], 10) || (i + 1);
+      out.push({ id: '', date, name, amount, ts });
+    }
+    return out;
+  }
+
+  /* =========================================================
+     Base64（UTF-8 安全）
+     ========================================================= */
+  function toBase64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    }
+    return btoa(bin);
+  }
+  function fromBase64(b64) {
+    const bin = atob(String(b64).replace(/\s/g, ''));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  /* =========================================================
+     GitHub 配置（仓库信息来自常量，Token 存在本地）
+     ========================================================= */
+  const gh = {
+    token: '',
+    owner:  GH_REPO_CONFIG.owner,
+    repo:   GH_REPO_CONFIG.repo,
+    branch: GH_REPO_CONFIG.branch,
+    path:   GH_REPO_CONFIG.path,
+    autoPull: true,
+    autoPush: false,
+    lastSync: 0
+  };
+
+  function loadGH() {
+    try {
+      const raw = localStorage.getItem(GH_KEY);
+      if (raw) {
+        const o = JSON.parse(raw);
+        if (o.token) gh.token = o.token;
+        if (typeof o.autoPull === 'boolean') gh.autoPull = o.autoPull;
+        if (typeof o.autoPush === 'boolean') gh.autoPush = o.autoPush;
+        if (typeof o.lastSync === 'number')  gh.lastSync = o.lastSync;
+      }
+    } catch (e) { /* ignore */ }
+    // 仓库信息永远以代码里的常量为准
+    gh.owner  = GH_REPO_CONFIG.owner;
+    gh.repo   = GH_REPO_CONFIG.repo;
+    gh.branch = GH_REPO_CONFIG.branch;
+    gh.path   = GH_REPO_CONFIG.path;
+  }
+  function saveGH() {
+    try {
+      localStorage.setItem(GH_KEY, JSON.stringify({
+        token: gh.token,
+        autoPull: gh.autoPull,
+        autoPush: gh.autoPush,
+        lastSync: gh.lastSync
+      }));
+    } catch (e) { /* ignore */ }
+  }
+  function ghReady() {
+    return !!(gh.token && isRepoConfigured() && gh.branch && gh.path);
+  }
+
+  /* =========================================================
+     GitHub API
+     ========================================================= */
+  const API = 'https://api.github.com';
+
+  function encPath(p) {
+    return String(p).replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
+  }
+
+  async function ghFetch(method, url, body) {
+    const headers = {
+      'Authorization': 'Bearer ' + gh.token,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28'
+    };
+    if (body) headers['Content-Type'] = 'application/json';
+    return fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      cache: 'no-store'
     });
   }
 
-  musicBtn.addEventListener('click', () => {
-    if (isMusicPlaying) { bgm.pause(); musicBtn.classList.remove('rotate'); } 
-    else { bgm.play(); musicBtn.classList.add('rotate'); }
-    isMusicPlaying = !isMusicPlaying;
-  });
+  async function ghErrMsg(res) {
+    let detail = '';
+    try {
+      const j = await res.json();
+      detail = j && j.message ? String(j.message) : '';
+    } catch (e) { /* ignore */ }
+    const map = {
+      401: 'Token 无效或已过期',
+      403: '权限不足（需 Contents 读写权限）或触发了频率限制',
+      404: '找不到仓库/分支/文件，或 Token 无权访问该仓库',
+      409: '文件冲突，请稍后重试',
+      422: '请求参数有误（请检查分支名与文件路径）'
+    };
+    return (map[res.status] || ('请求失败 HTTP ' + res.status)) + (detail ? '：' + detail : '');
+  }
+
+  async function ghGetFile() {
+    const url = API + '/repos/' + encodeURIComponent(gh.owner) + '/' +
+                encodeURIComponent(gh.repo) + '/contents/' + encPath(gh.path) +
+                '?ref=' + encodeURIComponent(gh.branch) + '&t=' + Date.now();
+    const res = await ghFetch('GET', url);
+    if (res.status === 404) return { exists: false, text: '', sha: null };
+    if (!res.ok) throw new Error(await ghErrMsg(res));
+    const data = await res.json();
+    if (!data || typeof data.content !== 'string') throw new Error('文件内容过大或格式异常');
+    return { exists: true, text: fromBase64(data.content), sha: data.sha };
+  }
+
+  async function ghPutFile(text, sha, message) {
+    const url = API + '/repos/' + encodeURIComponent(gh.owner) + '/' +
+                encodeURIComponent(gh.repo) + '/contents/' + encPath(gh.path);
+    const body = {
+      message: message,
+      content: toBase64('\uFEFF' + text),
+      branch: gh.branch
+    };
+    if (sha) body.sha = sha;
+    const res = await ghFetch('PUT', url, body);
+    if (!res.ok) throw new Error(await ghErrMsg(res));
+    return res.json();
+  }
+
+  /* =========================================================
+     同步操作
+     ========================================================= */
+  let syncing = false;
+
+  async function syncUpload(silent) {
+    if (!isRepoConfigured()) {
+      setModalStatus('代码里的仓库信息还没改，请先修改 GH_REPO_CONFIG', 'err');
+      if (!silent) showToast('请先在代码里配置仓库信息');
+      return;
+    }
+    if (!ghReady()) {
+      setModalStatus('请先填写 Token 并保存', 'err');
+      if (!silent) showToast('请先填写 Token');
+      return;
+    }
+    if (syncing) return;
+    syncing = true;
+    setSyncBar('busy', '正在上传到 GitHub…');
+    setModalStatus('正在上传…');
+
+    try {
+      const cur = await ghGetFile();
+      await ghPutFile(toCSV(), cur.sha, '更新消费账本 ' + new Date().toLocaleString('zh-CN'));
+      gh.lastSync = Date.now();
+      saveGH();
+      const msg = '已上传 ' + expenses.length + ' 条记录 · ' + new Date().toLocaleTimeString('zh-CN');
+      setSyncBar('ok', msg);
+      setModalStatus(msg, 'ok');
+      if (!silent) showToast('已同步到 GitHub ☁️');
+    } catch (err) {
+      const msg = '上传失败：' + err.message;
+      setSyncBar('err', msg);
+      setModalStatus(msg, 'err');
+      if (!silent) showToast(msg);
+    } finally {
+      syncing = false;
+    }
+  }
+
+  async function syncPull(askConfirm) {
+    if (!isRepoConfigured()) {
+      setModalStatus('代码里的仓库信息还没改，请先修改 GH_REPO_CONFIG', 'err');
+      showToast('请先在代码里配置仓库信息');
+      return;
+    }
+    if (!ghReady()) {
+      setModalStatus('请先填写 Token 并保存', 'err');
+      showToast('请先填写 Token');
+      return;
+    }
+    if (syncing) return;
+    syncing = true;
+    setSyncBar('busy', '正在读取云端表格…');
+    setModalStatus('正在读取云端…');
+
+    try {
+      const file = await ghGetFile();
+      if (!file.exists) {
+        const msg = '云端还没有表格文件，先点「立即上传」创建一个吧';
+        setSyncBar('ok', msg);
+        setModalStatus(msg);
+        return;
+      }
+      const remote = fromCSV(file.text);
+
+      if (askConfirm && expenses.length > 0) {
+        const tip = remote.length === 0
+          ? '云端表格是空的，拉取会清空本地 ' + expenses.length + ' 条记录，确定吗？'
+          : '将用云端的 ' + remote.length + ' 条记录覆盖本地 ' + expenses.length + ' 条记录，确定吗？';
+        if (!window.confirm(tip)) {
+          setSyncBar('ok', '已取消拉取');
+          setModalStatus('已取消拉取');
+          return;
+        }
+      }
+
+      expenses = remote;
+      normalizeIds();
+      saveData();
+
+      if (expenses.length) {
+        const latest = expenses.slice().sort((a, b) => a.date < b.date ? 1 : -1)[0];
+        selectedDate = latest.date;
+        const d = parseDate(selectedDate);
+        viewYear = d.getFullYear();
+        viewMonth = d.getMonth();
+      }
+      document.getElementById('expense-date').value = selectedDate;
+      renderAll();
+
+      gh.lastSync = Date.now();
+      saveGH();
+      const msg = '已从云端载入 ' + expenses.length + ' 条记录';
+      setSyncBar('ok', msg);
+      setModalStatus(msg, 'ok');
+      showToast(msg);
+    } catch (err) {
+      const msg = '读取失败：' + err.message;
+      setSyncBar('err', msg);
+      setModalStatus(msg, 'err');
+      showToast(msg);
+    } finally {
+      syncing = false;
+    }
+  }
+
+  async function autoPullOnLoad() {
+    if (!isRepoConfigured()) {
+      setSyncBar('', '代码里的仓库信息未修改 · 同步功能不可用');
+      return;
+    }
+    if (!ghReady() || !gh.autoPull) {
+      updateSyncBarIdle();
+      return;
+    }
+    setSyncBar('busy', '正在读取云端表格…');
+    try {
+      const file = await ghGetFile();
+      if (!file.exists) {
+        setSyncBar('ok', '云端暂无表格，保存记录后会自动上传');
+        return;
+      }
+      const remote = fromCSV(file.text);
+
+      if (expenses.length === 0) {
+        expenses = remote;
+        normalizeIds();
+        saveData();
+        if (expenses.length) {
+          const latest = expenses.slice().sort((a, b) => a.date < b.date ? 1 : -1)[0];
+          selectedDate = latest.date;
+          const d = parseDate(selectedDate);
+          viewYear = d.getFullYear();
+          viewMonth = d.getMonth();
+          document.getElementById('expense-date').value = selectedDate;
+        }
+        renderAll();
+        setSyncBar('ok', '已载入云端 ' + expenses.length + ' 条记录');
+      } else {
+        setSyncBar('ok', '云端 ' + remote.length + ' 条 · 本地 ' + expenses.length +
+                         ' 条，如需以云端为准请点「云端同步」手动拉取');
+      }
+    } catch (err) {
+      setSyncBar('err', '云端读取失败：' + err.message);
+    }
+  }
+
+  /* =========================================================
+     同步 UI
+     ========================================================= */
+  function setSyncBar(type, text) {
+    const bar = document.getElementById('sync-bar');
+    bar.className = 'sync-bar' + (type ? ' ' + type : '');
+    document.getElementById('sync-bar-text').textContent = text;
+  }
+  function updateSyncBarIdle() {
+    if (!isRepoConfigured()) {
+      setSyncBar('', '代码里的仓库信息未修改 · 同步功能不可用');
+    } else if (!gh.token) {
+      setSyncBar('', '云端同步未配置 · 点右上角「云端同步」填 Token');
+    } else if (!gh.autoPull) {
+      setSyncBar('', '已配置云端 · 自动读取已关闭');
+    } else {
+      setSyncBar('', '云端已配置');
+    }
+  }
+  function setModalStatus(text, cls) {
+    const el = document.getElementById('modal-status');
+    el.textContent = text || '';
+    el.className = 'modal-status' + (cls ? ' ' + cls : '');
+  }
+
+  function openSyncModal() {
+    document.getElementById('gh-token').value = gh.token;
+    document.getElementById('gh-autopull').checked = !!gh.autoPull;
+    document.getElementById('gh-autopush').checked = !!gh.autoPush;
+    document.getElementById('pwd-toggle').textContent = '显示';
+    document.getElementById('gh-token').type = 'password';
+
+    const info = document.getElementById('gh-target-info');
+    if (isRepoConfigured()) {
+      info.textContent = gh.owner + '/' + gh.repo + ' · ' + gh.branch + ' · ' + gh.path;
+    } else {
+      info.textContent = '（未配置：请先修改代码里的 GH_REPO_CONFIG）';
+    }
+
+    if (!isRepoConfigured()) {
+      setModalStatus('代码里的 GH_REPO_CONFIG 还是占位符，请先修改后再用', 'err');
+    } else if (gh.lastSync) {
+      setModalStatus('上次同步：' + new Date(gh.lastSync).toLocaleString('zh-CN'));
+    } else {
+      setModalStatus('尚未同步过');
+    }
+    document.getElementById('sync-modal').hidden = false;
+  }
+  function closeSyncModal() {
+    document.getElementById('sync-modal').hidden = true;
+  }
+
+  function readConfigFromForm() {
+    gh.token    = document.getElementById('gh-token').value.trim();
+    gh.autoPull = document.getElementById('gh-autopull').checked;
+    gh.autoPush = document.getElementById('gh-autopush').checked;
+    // owner / repo / branch / path 固定取常量
+  }
+
+  function handleSaveConfig() {
+    if (!isRepoConfigured()) {
+      setModalStatus('代码里的 GH_REPO_CONFIG 还是占位符，请先修改', 'err');
+      showToast('请先在代码里配置仓库信息');
+      return;
+    }
+    readConfigFromForm();
+    if (!gh.token) {
+      setModalStatus('请填写 Token', 'err');
+      return;
+    }
+    saveGH();
+    updateSyncBarIdle();
+    setModalStatus('Token 已保存在本浏览器中', 'ok');
+    showToast('Token 已保存');
+  }
+
+  /* =========================================================
+     渲染：统计
+     ========================================================= */
+  function renderStats() {
+    const now = new Date();
+    const todayStr = fmtDate(now);
+    const dow = (now.getDay() + 6) % 7;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+    const sunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    let todaySum = 0, weekSum = 0, monthSum = 0, yearSum = 0, totalSum = 0;
+    for (const e of expenses) {
+      const d = parseDate(e.date);
+      const a = e.amount || 0;
+      totalSum += a;
+      if (e.date === todayStr) todaySum += a;
+      if (d >= monday && d <= sunday) weekSum += a;
+      if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) monthSum += a;
+      if (d.getFullYear() === now.getFullYear()) yearSum += a;
+    }
+
+    document.getElementById('stat-today').textContent = money(todaySum);
+    document.getElementById('stat-week').textContent  = money(weekSum);
+    document.getElementById('stat-month').textContent = money(monthSum);
+    document.getElementById('stat-year').textContent  = money(yearSum);
+    document.getElementById('stat-total').textContent = money(totalSum);
+  }
+
+  /* =========================================================
+     渲染：日历
+     ========================================================= */
+  function renderCalendar() {
+    document.getElementById('cal-title').textContent = viewYear + '年' + (viewMonth + 1) + '月';
+
+    const totals = Object.create(null);
+    for (const e of expenses) {
+      totals[e.date] = (totals[e.date] || 0) + (e.amount || 0);
+    }
+
+    const first = new Date(viewYear, viewMonth, 1);
+    const startOffset = (first.getDay() + 6) % 7;
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+    const todayStr = fmtDate(new Date());
+
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < totalCells; i++) {
+      const d = new Date(viewYear, viewMonth, 1 - startOffset + i);
+      const ds = fmtDate(d);
+      const sum = totals[ds] || 0;
+
+      const el = document.createElement('div');
+      let cls = 'day';
+      if (d.getMonth() !== viewMonth) cls += ' outside';
+      if (ds === todayStr) cls += ' today';
+      if (ds === selectedDate) cls += ' selected';
+      if (sum > 0) cls += ' has-expense';
+      el.className = cls;
+      el.dataset.date = ds;
+
+      const num = document.createElement('span');
+      num.className = 'num';
+      num.textContent = d.getDate();
+      el.appendChild(num);
+
+      if (sum > 0) {
+        const amt = document.createElement('span');
+        amt.className = 'amt';
+        amt.textContent = '¥' + moneyShort(sum);
+        el.appendChild(amt);
+      }
+      frag.appendChild(el);
+    }
+
+    const days = document.getElementById('days');
+    days.innerHTML = '';
+    days.appendChild(frag);
+  }
+
+  /* =========================================================
+     渲染：当日明细
+     ========================================================= */
+  function renderDayDetail() {
+    const d = parseDate(selectedDate);
+    const isToday = selectedDate === fmtDate(new Date());
+
+    document.getElementById('detail-title').innerHTML =
+      (d.getMonth() + 1) + '月' + d.getDate() + '日' +
+      ' <span class="weekday">' + WEEK_NAMES[d.getDay()] + '</span>' +
+      (isToday ? ' <span class="badge">今天</span>' : '');
+
+    const body = document.getElementById('detail-body');
+    const list = expenses
+      .filter(e => e.date === selectedDate)
+      .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+    if (list.length === 0) {
+      body.innerHTML = '<div class="empty">这一天还没有消费记录<br>在上方表单中添加吧</div>';
+      return;
+    }
+
+    const total = list.reduce((s, e) => s + (e.amount || 0), 0);
+
+    body.innerHTML =
+      '<div class="detail-list">' +
+        list.map(e =>
+          '<div class="detail-item">' +
+            '<div class="info"><div class="name">' + escapeHtml(e.name) + '</div></div>' +
+            '<div class="amount">' + money(e.amount) + '</div>' +
+            '<button class="del-btn" data-id="' + e.id + '" type="button" title="删除">✕</button>' +
+          '</div>'
+        ).join('') +
+      '</div>' +
+      '<div class="detail-total">' +
+        '<span>共 ' + list.length + ' 笔</span>' +
+        '<span>合计 <strong>' + money(total) + '</strong></span>' +
+      '</div>';
+  }
+
+  function renderAll() {
+    renderStats();
+    renderCalendar();
+    renderDayDetail();
+  }
+
+  /* =========================================================
+     交互逻辑
+     ========================================================= */
+  function selectDay(ds) {
+    selectedDate = ds;
+    const d = parseDate(ds);
+    if (d.getFullYear() !== viewYear || d.getMonth() !== viewMonth) {
+      viewYear = d.getFullYear();
+      viewMonth = d.getMonth();
+    }
+    document.getElementById('expense-date').value = ds;
+    renderCalendar();
+    renderDayDetail();
+  }
+
+  function handleSubmit(ev) {
+    ev.preventDefault();
+
+    const nameEl   = document.getElementById('expense-name');
+    const amountEl = document.getElementById('expense-amount');
+    const dateEl   = document.getElementById('expense-date');
+
+    const name = nameEl.value.trim();
+    const amount = parseFloat(amountEl.value);
+    let date = dateEl.value;
+
+    if (!name) { showToast('请填写消费项目名称'); nameEl.focus(); return; }
+    if (!isFinite(amount) || amount <= 0) { showToast('请输入大于 0 的金额'); amountEl.focus(); return; }
+    if (!date) { date = fmtDate(new Date()); dateEl.value = date; }
+
+    const record = {
+      id: '',
+      name: name,
+      amount: Math.round(amount * 100) / 100,
+      date: date,
+      ts: Date.now()
+    };
+
+    expenses.push(record);
+    normalizeIds();
+    saveData();
+
+    selectedDate = date;
+    const d = parseDate(date);
+    viewYear = d.getFullYear();
+    viewMonth = d.getMonth();
+    dateEl.value = date;
+
+    nameEl.value = '';
+    amountEl.value = '';
+
+    renderAll();
+    showToast('已记录：' + name + ' ' + money(record.amount));
+
+    if (!('ontouchstart' in window)) nameEl.focus();
+
+    if (ghReady() && gh.autoPush) {
+      syncUpload(true);
+    }
+  }
+
+  function handleDelete(id) {
+    const idx = expenses.findIndex(e => e.id === id);
+    if (idx === -1) return;
+
+    const removed = expenses.splice(idx, 1)[0];
+    normalizeIds();
+    saveData();
+    renderAll();
+
+    showToast('已删除「' + removed.name + '」', '撤销', function () {
+      expenses.push(removed);
+      normalizeIds();
+      saveData();
+      renderAll();
+      if (ghReady() && gh.autoPush) syncUpload(true);
+    });
+  }
+
+  /* =========================================================
+     Toast
+     ========================================================= */
+  function showToast(msg, actionText, actionFn) {
+    const el = document.getElementById('toast');
+    clearTimeout(toastTimer);
+
+    if (actionText && typeof actionFn === 'function') {
+      el.innerHTML = '<span>' + escapeHtml(msg) + '</span>' +
+        '<button class="toast-btn" type="button">' + escapeHtml(actionText) + '</button>';
+      el.querySelector('.toast-btn').addEventListener('click', function () {
+        clearTimeout(toastTimer);
+        el.classList.remove('show');
+        actionFn();
+      });
+    } else {
+      el.innerHTML = '<span>' + escapeHtml(msg) + '</span>';
+    }
+
+    el.classList.add('show');
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 3600);
+  }
+
+  /* =========================================================
+     事件绑定
+     ========================================================= */
+  function bindEvents() {
+    document.getElementById('expense-form').addEventListener('submit', handleSubmit);
+
+    document.getElementById('prev-month').addEventListener('click', function () {
+      viewMonth--;
+      if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+      renderCalendar();
+    });
+    document.getElementById('next-month').addEventListener('click', function () {
+      viewMonth++;
+      if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+      renderCalendar();
+    });
+
+    document.getElementById('days').addEventListener('click', function (ev) {
+      const cell = ev.target.closest('.day');
+      if (!cell) return;
+      selectDay(cell.dataset.date);
+    });
+
+    document.getElementById('detail-body').addEventListener('click', function (ev) {
+      const btn = ev.target.closest('.del-btn');
+      if (!btn) return;
+      handleDelete(btn.dataset.id);
+    });
+
+    document.getElementById('btn-today').addEventListener('click', function () {
+      const now = new Date();
+      viewYear = now.getFullYear();
+      viewMonth = now.getMonth();
+      selectDay(fmtDate(now));
+      showToast('已回到今天');
+    });
+
+    // ---- 同步弹窗 ----
+    document.getElementById('btn-sync').addEventListener('click', openSyncModal);
+    document.getElementById('sync-close').addEventListener('click', closeSyncModal);
+
+    document.getElementById('sync-modal').addEventListener('click', function (ev) {
+      if (ev.target === this) closeSyncModal();
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && !document.getElementById('sync-modal').hidden) {
+        closeSyncModal();
+      }
+    });
+
+    document.getElementById('pwd-toggle').addEventListener('click', function () {
+      const input = document.getElementById('gh-token');
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      this.textContent = show ? '隐藏' : '显示';
+    });
+
+    document.getElementById('btn-save-config').addEventListener('click', handleSaveConfig);
+    document.getElementById('btn-push').addEventListener('click', function () {
+      readConfigFromForm();
+      saveGH();
+      updateSyncBarIdle();
+      syncUpload(false);
+    });
+    document.getElementById('btn-pull').addEventListener('click', function () {
+      readConfigFromForm();
+      saveGH();
+      updateSyncBarIdle();
+      syncPull(true);
+    });
+  }
+
+  /* =========================================================
+     初始化
+     ========================================================= */
+  function init() {
+    loadGH();
+    loadData();
+
+    const now = new Date();
+    viewYear = now.getFullYear();
+    viewMonth = now.getMonth();
+    selectedDate = fmtDate(now);
+    document.getElementById('expense-date').value = selectedDate;
+
+    bindEvents();
+    renderAll();
+
+    updateSyncBarIdle();
+    autoPullOnLoad();
+  }
+
+  init();
+})();
 </script>
 </body>
 </html>
